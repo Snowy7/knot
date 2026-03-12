@@ -88,10 +88,14 @@ export class TerminalManager {
     const fontConfig = config?.font;
     const termConfig = config?.terminal;
 
-    const defaultFontFamily = "monospace";
+    // Ensure font family always ends with generic monospace fallback
+    const configFamily = fontConfig?.family;
+    const fontFamily = configFamily
+      ? (configFamily.includes("monospace") ? configFamily : `${configFamily}, monospace`)
+      : "monospace";
 
     const term = new Terminal({
-      fontFamily: fontConfig?.family || defaultFontFamily,
+      fontFamily,
       fontSize: fontConfig?.size || 14,
       lineHeight: fontConfig?.line_height || 1.2,
       fontWeight: String(fontConfig?.weight || 400) as any,
@@ -229,10 +233,13 @@ export class TerminalManager {
 
   applyConfig(config: KnotConfig | null): void {
     const fontConfig = config?.font;
-    const defaultFontFamily = "monospace";
+    const configFamily = fontConfig?.family;
+    const fontFamily = configFamily
+      ? (configFamily.includes("monospace") ? configFamily : `${configFamily}, monospace`)
+      : "monospace";
     const theme = this._getTheme();
     for (const [, instance] of this.instances) {
-      instance.term.options.fontFamily = fontConfig?.family || defaultFontFamily;
+      instance.term.options.fontFamily = fontFamily;
       instance.term.options.fontSize = fontConfig?.size || 14;
       instance.term.options.lineHeight = fontConfig?.line_height || 1.2;
       instance.term.options.theme = theme;

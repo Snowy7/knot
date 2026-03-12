@@ -112,7 +112,24 @@ fn default_shell() -> String {
     #[cfg(windows)]
     { "powershell.exe".to_string() }
 }
-fn default_font_family() -> String { "JetBrains Mono".to_string() }
+fn default_font_family() -> String {
+    #[cfg(unix)]
+    {
+        // Query fontconfig for the system monospace font
+        if let Ok(output) = std::process::Command::new("fc-match")
+            .args(["monospace", "--format=%{family}"])
+            .output()
+        {
+            if output.status.success() {
+                let family = String::from_utf8_lossy(&output.stdout).trim().to_string();
+                if !family.is_empty() {
+                    return family;
+                }
+            }
+        }
+    }
+    "monospace".to_string()
+}
 fn default_font_size() -> f64 { 14.0 }
 fn default_line_height() -> f64 { 1.2 }
 fn default_font_weight() -> u16 { 400 }
