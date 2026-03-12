@@ -187,33 +187,62 @@ html, body, #app {
 .term-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 5px 10px;
-  border: none;
   border-left: 2px solid transparent;
+  transition: background 80ms, border-color 80ms;
+}
+
+.term-row:hover {
+  background: var(--bg-elevated);
+}
+
+.term-row.active {
+  background: var(--bg-elevated);
+  border-left-color: var(--accent);
+}
+
+.term-row.dead {
+  opacity: 0.4;
+}
+
+.term-row-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  padding: 5px 0 5px 10px;
+  border: none;
   background: transparent;
   color: var(--text-dim);
   font: inherit;
   font-size: 11px;
   cursor: pointer;
   text-align: left;
-  transition: background 80ms, color 80ms, border-color 80ms;
 }
 
-.term-row:hover {
-  background: var(--bg-elevated);
-  color: var(--text-muted);
-}
-
-.term-row.active {
-  background: var(--bg-elevated);
+.term-row:hover .term-row-label,
+.term-row.active .term-row-label {
   color: var(--text);
-  border-left-color: var(--accent);
 }
 
-.term-row.dead {
-  opacity: 0.4;
+.term-row-close {
+  border: none;
+  background: transparent;
+  color: transparent;
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 8px;
+  line-height: 1;
+  transition: color 80ms;
+}
+
+.term-row:hover .term-row-close {
+  color: var(--text-dim);
+}
+
+.term-row-close:hover {
+  color: var(--text) !important;
 }
 
 .term-row-index {

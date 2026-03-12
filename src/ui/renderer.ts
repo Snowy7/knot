@@ -154,17 +154,32 @@ export class UIRenderer {
       const alive = this.tm.instances.has(t.id);
       const isActive = t.id === activeId;
 
-      const row = document.createElement("button");
+      const row = document.createElement("div");
       row.className = `term-row${isActive ? " active" : ""}${!alive ? " dead" : ""}`;
-      row.innerHTML = `
-        <span class="term-row-index">${i + 1}</span>
-        <span class="term-row-title">${t.title || "shell"}</span>
-      `;
-      row.addEventListener("click", () => {
+
+      const label = document.createElement("button");
+      label.className = "term-row-label";
+      label.innerHTML = `<span class="term-row-index">${i + 1}</span><span class="term-row-title">${t.title || "shell"}</span>`;
+      label.addEventListener("click", () => {
         this.state.activeTerminalId = t.id;
         this._update();
         this.tm.focusActive();
       });
+
+      const close = document.createElement("button");
+      close.className = "term-row-close";
+      close.textContent = "\u00d7";
+      close.title = "Close terminal";
+      close.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (ws) {
+          this.state.activeTerminalId = t.id;
+          this.tm.closeActiveTerminal(ws.id).then(() => this.render());
+        }
+      });
+
+      row.appendChild(label);
+      row.appendChild(close);
       container.appendChild(row);
     }
   }
