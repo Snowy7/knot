@@ -1,21 +1,26 @@
-/**
- * Keybind handler — intercepts keyboard events and resolves them to actions.
- */
+import type { AppState } from "../state/app-state";
+
+interface KnotApp {
+  executeAction(action: string): Promise<void>;
+}
+
 export class KeybindHandler {
-  constructor(appState, app) {
+  private state: AppState;
+  private app: KnotApp;
+  private leaderActive = false;
+  private leaderTimeout: ReturnType<typeof setTimeout> | null = null;
+
+  constructor(appState: AppState, app: KnotApp) {
     this.state = appState;
     this.app = app;
-    this.leaderActive = false;
-    this.leaderTimeout = null;
   }
 
-  attach() {
+  attach(): void {
     document.addEventListener("keydown", (e) => this._handleKeyDown(e));
   }
 
-  _handleKeyDown(e) {
-    // Don't intercept when command palette input is focused
-    if (e.target.closest(".command-palette-input")) return;
+  private _handleKeyDown(e: KeyboardEvent): void {
+    if ((e.target as HTMLElement)?.closest(".command-palette-input")) return;
 
     const combo = this._eventToCombo(e);
     if (!combo) return;
@@ -23,10 +28,9 @@ export class KeybindHandler {
     const config = this.state.config?.keybindings;
     if (!config) return;
 
-    // Leader mode
     if (this.leaderActive) {
       this.leaderActive = false;
-      clearTimeout(this.leaderTimeout);
+      if (this.leaderTimeout) clearTimeout(this.leaderTimeout);
 
       const action = config.leader_bindings?.[combo];
       if (action) {
@@ -35,23 +39,19 @@ export class KeybindHandler {
         this.app.executeAction(action);
         return;
       }
-      // Leader + unrecognized key — pass through
       return;
     }
 
-    // Check if this is the leader key
     if (config.leader && combo === config.leader) {
       e.preventDefault();
       e.stopPropagation();
       this.leaderActive = true;
-      // Timeout leader after 1.5s
       this.leaderTimeout = setTimeout(() => {
         this.leaderActive = false;
       }, 1500);
       return;
     }
 
-    // Check direct bindings
     const action = config.bindings?.[combo];
     if (action) {
       e.preventDefault();
@@ -60,11 +60,8 @@ export class KeybindHandler {
     }
   }
 
-  /**
-   * Convert a KeyboardEvent to a combo string like "ctrl+shift+t".
-   */
-  _eventToCombo(e) {
-    const parts = [];
+  private _eventToCombo(e: KeyboardEvent): string | null {
+    const parts: string[] = [];
 
     if (e.ctrlKey || e.metaKey) parts.push("ctrl");
     if (e.altKey) parts.push("alt");
@@ -72,27 +69,17 @@ export class KeybindHandler {
 
     let key = e.key.toLowerCase();
 
-    // Normalize special keys
-    const keyMap = {
-      control: null,
-      alt: null,
-      shift: null,
-      meta: null,
-      arrowup: "up",
-      arrowdown: "down",
-      arrowleft: "left",
-      arrowright: "right",
-      escape: "escape",
-      enter: "enter",
-      backspace: "backspace",
-      tab: "tab",
-      " ": "space",
-      delete: "delete",
+    const keyMap: Record<string, string | null> = {
+      control: null, alt: null, shift: null, meta: null,
+      arrowup: "up", arrowdown: "down", arrowleft: "left", arrowright: "right",
+      escape: "escape", enter: "enter", backspace: "backspace",
+      tab: "tab", " ": "space", delete: "delete",
     };
 
     if (key in keyMap) {
-      key = keyMap[key];
-      if (key === null) return null; // Modifier-only press
+      const mapped = keyMap[key];
+      if (mapped === null) return null;
+      key = mapped;
     }
 
     parts.push(key);

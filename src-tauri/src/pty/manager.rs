@@ -1,9 +1,9 @@
 use super::session::{PtyError, PtySession};
 use parking_lot::Mutex;
 use std::collections::HashMap;
+use std::sync::mpsc;
 use std::sync::Arc;
 use tauri::{AppHandle, Emitter};
-use tokio::sync::mpsc;
 
 /// Manages all PTY sessions across all workspaces.
 pub struct PtyManager {
@@ -33,16 +33,9 @@ impl PtyManager {
         env_vars: Vec<(String, String)>,
         app_handle: AppHandle,
     ) -> Result<(), PtyError> {
-        let shell = shell.unwrap_or_else(|| {
-            // Borrow from the lock, but we need to return a &str
-            // So we'll just use the default
-            ""
-        });
-
-        let effective_shell = if shell.is_empty() {
-            self.default_shell.lock().clone()
-        } else {
-            shell.to_string()
+        let effective_shell = match shell {
+            Some(s) if !s.is_empty() => s.to_string(),
+            _ => self.default_shell.lock().clone(),
         };
 
         let (session, rx) = PtySession::spawn(
@@ -57,10 +50,10 @@ impl PtyManager {
         let session = Arc::new(Mutex::new(session));
         self.sessions.lock().insert(id.clone(), session);
 
-        // Spawn async task to forward PTY output to frontend
+        // Spawn a plain thread to forward PTY output to frontend via Tauri events
         let terminal_id = id.clone();
-        tokio::spawn(async move {
-            forward_output(rx, terminal_id, app_handle).await;
+        std::thread::spawn(move || {
+            forward_output(rx, terminal_id, app_handle);
         });
 
         Ok(())
@@ -110,53 +103,40 @@ impl PtyManager {
 }
 
 /// Forward PTY output bytes to the frontend via Tauri events.
-async fn forward_output(
-    mut rx: mpsc::UnboundedReceiver<Vec<u8>>,
+/// Runs on a dedicated thread — batches output to reduce IPC overhead.
+fn forward_output(
+    rx: mpsc::Receiver<Vec<u8>>,
     terminal_id: String,
     app_handle: AppHandle,
 ) {
-    // Batch output to reduce IPC overhead — collect for up to 8ms or 16KB
     let mut batch = Vec::with_capacity(16384);
 
     loop {
-        tokio::select! {
-            msg = rx.recv() => {
-                match msg {
-                    Some(data) => {
-                        batch.extend_from_slice(&data);
+        // Block until first chunk arrives
+        match rx.recv() {
+            Ok(data) => {
+                batch.extend_from_slice(&data);
 
-                        // Drain any immediately available data
-                        while let Ok(more) = rx.try_recv() {
-                            batch.extend_from_slice(&more);
-                            if batch.len() > 16384 {
-                                break;
-                            }
-                        }
-
-                        // Emit batched data
-                        let payload = TerminalOutput {
-                            terminal_id: terminal_id.clone(),
-                            data: batch.clone(),
-                        };
-                        let _ = app_handle.emit("terminal-output", &payload);
-                        batch.clear();
-                    }
-                    None => {
-                        // Channel closed — PTY died
-                        let _ = app_handle.emit("terminal-exit", &terminal_id);
+                // Drain any immediately available data (non-blocking)
+                while let Ok(more) = rx.try_recv() {
+                    batch.extend_from_slice(&more);
+                    if batch.len() > 16384 {
                         break;
                     }
                 }
+
+                // Emit batched data to frontend
+                let payload = TerminalOutput {
+                    terminal_id: terminal_id.clone(),
+                    data: batch.clone(),
+                };
+                let _ = app_handle.emit("terminal-output", &payload);
+                batch.clear();
             }
-            _ = tokio::time::sleep(tokio::time::Duration::from_millis(8)) => {
-                if !batch.is_empty() {
-                    let payload = TerminalOutput {
-                        terminal_id: terminal_id.clone(),
-                        data: batch.clone(),
-                    };
-                    let _ = app_handle.emit("terminal-output", &payload);
-                    batch.clear();
-                }
+            Err(_) => {
+                // Channel closed — PTY process exited
+                let _ = app_handle.emit("terminal-exit", &terminal_id);
+                break;
             }
         }
     }

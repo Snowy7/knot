@@ -1,25 +1,29 @@
-/**
- * Command palette — fuzzy search over all actions.
- */
+import type { AppState } from "../state/app-state";
+import type { PaletteAction } from "../types";
+
+interface KnotApp {
+  executeAction(action: string): Promise<void>;
+  terminalManager: { focusActive(): void };
+}
+
 export class CommandPalette {
-  constructor(appState, app) {
+  private state: AppState;
+  private app: KnotApp;
+  private visible = false;
+  private element: HTMLElement | null = null;
+  private selectedIndex = 0;
+  private filteredActions: PaletteAction[] = [];
+
+  constructor(appState: AppState, app: KnotApp) {
     this.state = appState;
     this.app = app;
-    this.visible = false;
-    this.element = null;
-    this.selectedIndex = 0;
-    this.filteredActions = [];
   }
 
-  toggle() {
-    if (this.visible) {
-      this.hide();
-    } else {
-      this.show();
-    }
+  toggle(): void {
+    this.visible ? this.hide() : this.show();
   }
 
-  show() {
+  show(): void {
     this.visible = true;
     this.selectedIndex = 0;
 
@@ -36,43 +40,35 @@ export class CommandPalette {
         <div class="command-palette-results"></div>
       </div>
     `;
-
     this.element.style.display = "flex";
 
-    const input = this.element.querySelector(".command-palette-input");
+    const input = this.element.querySelector<HTMLInputElement>(".command-palette-input")!;
     input.addEventListener("input", () => this._filter(input.value));
     input.addEventListener("keydown", (e) => this._handleKey(e));
-
-    this.element.querySelector(".command-palette-backdrop").addEventListener("click", () => this.hide());
+    this.element.querySelector(".command-palette-backdrop")!.addEventListener("click", () => this.hide());
 
     requestAnimationFrame(() => input.focus());
     this._filter("");
   }
 
-  hide() {
+  hide(): void {
     this.visible = false;
-    if (this.element) {
-      this.element.style.display = "none";
-    }
-    // Refocus terminal
-    const { tm } = this.app;
-    if (tm) tm.focusActive();
+    if (this.element) this.element.style.display = "none";
+    this.app.terminalManager.focusActive();
   }
 
-  _filter(query) {
+  private _filter(query: string): void {
     const actions = this._getAllActions();
     const q = query.toLowerCase().trim();
-
     this.filteredActions = q
       ? actions.filter((a) => a.label.toLowerCase().includes(q) || a.action.includes(q))
       : actions;
-
     this.selectedIndex = 0;
     this._renderResults();
   }
 
-  _renderResults() {
-    const results = this.element.querySelector(".command-palette-results");
+  private _renderResults(): void {
+    const results = this.element!.querySelector(".command-palette-results")!;
     results.innerHTML = "";
 
     this.filteredActions.slice(0, 20).forEach((item, i) => {
@@ -90,11 +86,8 @@ export class CommandPalette {
     });
   }
 
-  _handleKey(e) {
-    if (e.key === "Escape") {
-      this.hide();
-      return;
-    }
+  private _handleKey(e: KeyboardEvent): void {
+    if (e.key === "Escape") { this.hide(); return; }
     if (e.key === "ArrowDown") {
       e.preventDefault();
       this.selectedIndex = Math.min(this.selectedIndex + 1, this.filteredActions.length - 1);
@@ -110,31 +103,22 @@ export class CommandPalette {
     if (e.key === "Enter") {
       e.preventDefault();
       const selected = this.filteredActions[this.selectedIndex];
-      if (selected) {
-        this.hide();
-        this.app.executeAction(selected.action);
-      }
-      return;
+      if (selected) { this.hide(); this.app.executeAction(selected.action); }
     }
   }
 
-  _getAllActions() {
-    const bindings = this.state.config?.keybindings?.bindings || {};
-    const leaderBindings = this.state.config?.keybindings?.leader_bindings || {};
-    const leader = this.state.config?.keybindings?.leader || "";
+  private _getAllActions(): PaletteAction[] {
+    const bindings = this.state.config?.keybindings?.bindings ?? {};
+    const leaderBindings = this.state.config?.keybindings?.leader_bindings ?? {};
+    const leader = this.state.config?.keybindings?.leader ?? "";
 
-    // Build reverse map: action -> keybind
-    const keybindMap = {};
-    for (const [key, action] of Object.entries(bindings)) {
-      keybindMap[action] = key;
-    }
+    const keybindMap: Record<string, string> = {};
+    for (const [key, action] of Object.entries(bindings)) keybindMap[action] = key;
     for (const [key, action] of Object.entries(leaderBindings)) {
-      if (!keybindMap[action]) {
-        keybindMap[action] = `${leader} → ${key}`;
-      }
+      if (!keybindMap[action]) keybindMap[action] = `${leader} → ${key}`;
     }
 
-    const actions = [
+    const actions: { action: string; label: string }[] = [
       { action: "new_terminal", label: "New Terminal" },
       { action: "close_terminal", label: "Close Terminal" },
       { action: "split_right", label: "Split Right" },
@@ -161,9 +145,6 @@ export class CommandPalette {
       { action: "command_palette", label: "Command Palette" },
     ];
 
-    return actions.map((a) => ({
-      ...a,
-      keybind: keybindMap[a.action] || "",
-    }));
+    return actions.map((a) => ({ ...a, keybind: keybindMap[a.action] ?? "" }));
   }
 }

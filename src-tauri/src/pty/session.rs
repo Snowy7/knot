@@ -1,8 +1,8 @@
 use portable_pty::{Child, MasterPty, PtySize};
 use std::io::{BufReader, Read, Write};
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
 use std::sync::Arc;
-use tokio::sync::mpsc;
 
 /// A single PTY session — one real shell process with I/O channels.
 pub struct PtySession {
@@ -21,7 +21,7 @@ impl PtySession {
         cols: u16,
         rows: u16,
         env_vars: Vec<(String, String)>,
-    ) -> Result<(Self, mpsc::UnboundedReceiver<Vec<u8>>), PtyError> {
+    ) -> Result<(Self, mpsc::Receiver<Vec<u8>>), PtyError> {
         let pty_system = portable_pty::native_pty_system();
 
         let size = PtySize {
@@ -70,7 +70,7 @@ impl PtySession {
         let alive = Arc::new(AtomicBool::new(true));
 
         // Spawn reader thread — streams PTY output to a channel
-        let (tx, rx) = mpsc::unbounded_channel::<Vec<u8>>();
+        let (tx, rx) = mpsc::channel::<Vec<u8>>();
         let alive_clone = alive.clone();
 
         std::thread::spawn(move || {
