@@ -8,6 +8,7 @@ mod workspace;
 use ipc::commands;
 use parking_lot::RwLock;
 use std::sync::Arc;
+use tauri::Manager;
 use workspace::manager::WorkspaceManager;
 
 pub struct AppState {

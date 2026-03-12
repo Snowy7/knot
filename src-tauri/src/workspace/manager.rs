@@ -1,4 +1,4 @@
-use super::model::{Layout, SplitDirection, TerminalInfo, Workspace, WorkspaceSnapshot};
+use super::model::{SplitDirection, TerminalInfo, Workspace, WorkspaceSnapshot};
 use std::collections::HashMap;
 use std::path::PathBuf;
 

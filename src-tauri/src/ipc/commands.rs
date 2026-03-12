@@ -1,6 +1,6 @@
-use crate::workspace::model::{Layout, SplitDirection, Workspace};
+use crate::workspace::model::{SplitDirection, Workspace};
 use crate::AppState;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, State};
 
 // ── Workspace commands ──────────────────────────────────────
 
