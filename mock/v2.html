@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>knot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #111113;
+  --text: #e8e8ec;
+  --muted: #6e6e7a;
+  --surface: #18181b;
+  --card: #1c1c1f;
+  --terminal: #0c0c0e;
+  --accent: #8b7cf6;
+  --running: #34d399;
+  --needs-input: #f59e0b;
+  --queued: #6e6e7a;
+  --idle: #3f3f46;
+  --error: #ef4444;
+  --radius: 12px;
+  --gap: 24px;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-weight: 300;
+  font-size: 14px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background: rgba(139, 124, 246, 0.25);
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a2a2e;
+  border-radius: 4px;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: var(--gap);
+  gap: var(--gap);
+}
+
+/* ─── Top bar ─── */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 0 4px;
+}
+
+.topbar-left {
+  display: flex;
+  align-items: center;
+  gap: 40px;
+}
+
+.logo {
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  opacity: 0.5;
+  user-select: none;
+}
+
+.workspaces {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.workspace-link {
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--muted);
+  cursor: pointer;
+  transition: color 0.2s, opacity 0.2s;
+  user-select: none;
+  letter-spacing: -0.01em;
+}
+
+.workspace-link:hover {
+  color: var(--text);
+  opacity: 0.8;
+}
+
+.workspace-link.active {
+  color: var(--text);
+}
+
+.topbar-right {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+
+.mode-label {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+}
+
+.mode-toggles {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mode-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: #2a2a2e;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.mode-dot:hover {
+  background: #3a3a3e;
+}
+
+.mode-dot.active {
+  background: var(--accent);
+  box-shadow: 0 0 8px rgba(139, 124, 246, 0.3);
+}
+
+/* ─── Main content ─── */
+
+.main {
+  display: flex;
+  flex: 1;
+  gap: var(--gap);
+  min-height: 0;
+}
+
+/* ─── Terminal area ─── */
+
+.terminal-area {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  gap: var(--gap);
+}
+
+.terminal-panel {
+  flex: 1;
+  background: var(--terminal);
+  border-radius: var(--radius);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.terminal-role {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--muted);
+  padding: 16px 20px 0;
+  letter-spacing: 0.04em;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+.terminal-output {
+  flex: 1;
+  padding: 12px 20px 20px;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  line-height: 1.7;
+  color: var(--text);
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  opacity: 0.85;
+}
+
+.terminal-output .prompt {
+  color: var(--muted);
+}
+
+.terminal-output .cmd {
+  color: var(--text);
+}
+
+.terminal-output .out {
+  color: #9e9ea8;
+}
+
+.terminal-output .accent {
+  color: var(--accent);
+}
+
+.terminal-output .green {
+  color: var(--running);
+}
+
+.terminal-output .yellow {
+  color: var(--needs-input);
+}
+
+.terminal-output .red {
+  color: var(--error);
+}
+
+.terminal-output .dim {
+  color: #4a4a52;
+}
+
+.cursor-blink {
+  display: inline-block;
+  width: 7px;
+  height: 14px;
+  background: var(--accent);
+  opacity: 0.7;
+  animation: blink 1.1s step-end infinite;
+  vertical-align: text-bottom;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 0; }
+}
+
+/* ─── Attention rail ─── */
+
+.rail {
+  width: 200px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 8px 0;
+  gap: 0;
+}
+
+.rail-agent {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: background 0.2s, opacity 0.2s;
+  user-select: none;
+}
+
+.rail-agent:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.rail-agent.active .rail-name {
+  color: var(--accent);
+  font-weight: 400;
+}
+
+.rail-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.rail-dot.running { background: var(--running); }
+.rail-dot.needs-input { background: var(--needs-input); }
+.rail-dot.queued { background: var(--queued); }
+.rail-dot.idle { background: var(--idle); }
+.rail-dot.error { background: var(--error); }
+
+.rail-name {
+  font-size: 13px;
+  font-weight: 300;
+  color: var(--muted);
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+
+.rail-status {
+  font-size: 11px;
+  color: #4a4a52;
+  font-weight: 300;
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+/* ─── Feed ─── */
+
+.feed {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 4px;
+}
+
+.feed-item {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  padding: 6px 0;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+
+.feed-item:hover {
+  opacity: 1;
+}
+
+.feed-agent {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+  min-width: 64px;
+  flex-shrink: 0;
+}
+
+.feed-text {
+  font-size: 12px;
+  font-weight: 300;
+  color: #9e9ea8;
+  flex: 1;
+}
+
+.feed-time {
+  font-size: 11px;
+  color: #4a4a52;
+  font-weight: 300;
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Mission control ─── */
+
+.mission {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--gap);
+  flex: 1;
+  align-content: start;
+  overflow-y: auto;
+  padding: 4px;
+}
+
+.mission-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  padding: 20px;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mission-card:hover {
+  transform: translateY(-2px);
+  background: var(--card);
+}
+
+.mission-card-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mission-card-name {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text);
+}
+
+.mission-card-branch {
+  font-size: 11px;
+  color: #4a4a52;
+  font-weight: 300;
+  margin-left: auto;
+}
+
+.mission-card-summary {
+  font-size: 12px;
+  font-weight: 300;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+/* ─── Views / transitions ─── */
+
+.view {
+  display: none;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  gap: var(--gap);
+  animation: fadeIn 0.2s ease;
+}
+
+.view.active {
+  display: flex;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.main-focus {
+  flex: 1;
+  display: flex;
+  gap: var(--gap);
+  min-height: 0;
+}
+
+.main-compare {
+  flex: 1;
+  display: flex;
+  gap: var(--gap);
+  min-height: 0;
+}
+
+/* ─── Heartbeat pulse ─── */
+
+.heartbeat {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  opacity: 0.3;
+  transition: opacity 0.2s;
+}
+
+.heartbeat:hover {
+  opacity: 0.6;
+}
+
+.heartbeat-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--running);
+  animation: pulse 7s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  15% { opacity: 1; transform: scale(1.4); }
+  30% { opacity: 0.3; transform: scale(1); }
+}
+
+.heartbeat-label {
+  font-size: 10px;
+  color: var(--muted);
+  font-weight: 300;
+}
+
+/* ─── Workspace meta ─── */
+
+.workspace-meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 0 4px;
+  flex-shrink: 0;
+}
+
+.meta-item {
+  font-size: 11px;
+  color: #4a4a52;
+  font-weight: 300;
+}
+
+.meta-item span {
+  color: var(--muted);
+}
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="logo">knot</div>
+      <div class="workspaces" id="workspaces"></div>
+    </div>
+    <div class="topbar-right">
+      <span class="mode-label" id="modeLabel">Focus</span>
+      <div class="mode-toggles">
+        <div class="mode-dot active" data-mode="0" title="Focus"></div>
+        <div class="mode-dot" data-mode="1" title="Compare"></div>
+        <div class="mode-dot" data-mode="2" title="Mission"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="workspace-meta" id="workspaceMeta"></div>
+
+  <!-- Focus view -->
+  <div class="view active" id="viewFocus">
+    <div class="main-focus">
+      <div class="terminal-area" id="focusTerminals">
+        <div class="terminal-panel" id="focusTerminal">
+          <div class="terminal-role" id="focusRole"></div>
+          <div class="terminal-output" id="focusOutput"></div>
+        </div>
+      </div>
+      <div class="rail" id="focusRail"></div>
+    </div>
+    <div class="feed" id="focusFeed"></div>
+  </div>
+
+  <!-- Compare view -->
+  <div class="view" id="viewCompare">
+    <div class="main-compare">
+      <div class="terminal-panel" id="compareLeft">
+        <div class="terminal-role" id="compareLeftRole"></div>
+        <div class="terminal-output" id="compareLeftOutput"></div>
+      </div>
+      <div class="terminal-panel" id="compareRight">
+        <div class="terminal-role" id="compareRightRole"></div>
+        <div class="terminal-output" id="compareRightOutput"></div>
+      </div>
+    </div>
+    <div class="feed" id="compareFeed"></div>
+  </div>
+
+  <!-- Mission view -->
+  <div class="view" id="viewMission">
+    <div class="mission" id="missionGrid"></div>
+    <div class="feed" id="missionFeed"></div>
+  </div>
+
+  <div class="heartbeat">
+    <div class="heartbeat-dot"></div>
+    <span class="heartbeat-label">sync</span>
+  </div>
+</div>
+
+<script>
+// ─── Data ───
+
+const workspaces = [
+  {
+    id: "atlas", name: "Atlas", repo: "~/work/atlas-core", template: "Full swarm", spike: "2m ago",
+    agents: [
+      { role: "planner", summary: "Plan API split, queue schema migration, stage agent handoffs.", status: "needs-input", branch: "feat/workspace-stream" },
+      { role: "coder-a", summary: "Refactor server bootstrap and keep auth adapter isolated.", status: "running", branch: "feat/auth-slice" },
+      { role: "coder-b", summary: "Wiring compare overlay and preserving active focus path.", status: "running", branch: "feat/focus-rail" },
+      { role: "tests", summary: "Replay API contract suite against mock and staging outputs.", status: "queued", branch: "test/contracts" },
+      { role: "logs", summary: "Streaming edge logs, deploy hooks, and queue failures.", status: "idle", branch: "ops/live" },
+      { role: "research", summary: "Collect terminal UX notes and keyboard priority conflicts.", status: "error", branch: "docs/research" }
+    ],
+    feed: [
+      { agent: "coder-b", text: "Compare mode now mirrors primary focus and secondary selection.", time: "11:02" },
+      { agent: "planner", text: "Waiting on user input for repo grouping strategy.", time: "10:59" },
+      { agent: "logs", text: "No new deploy errors in the last 12 minutes.", time: "10:54" },
+      { agent: "research", text: "Found collision between workspace switch and tmux defaults.", time: "10:48" }
+    ]
+  },
+  {
+    id: "rune", name: "Rune", repo: "~/work/rune-ui", template: "Frontend train", spike: "7m ago",
+    agents: [
+      { role: "planner", summary: "Split tasks by route, animation pass, and accessibility audit.", status: "running", branch: "feat/plan-pass" },
+      { role: "ui", summary: "Building motion-heavy shell with card stack navigation.", status: "running", branch: "feat/hero-shell" },
+      { role: "review", summary: "Checking contrast and keyboard flow in mission control.", status: "needs-input", branch: "chore/review" },
+      { role: "tests", summary: "Running snapshot and navigation test queue.", status: "queued", branch: "test/nav" },
+      { role: "notes", summary: "Summarizing design decisions and copy changes.", status: "idle", branch: "docs/notes" }
+    ],
+    feed: [
+      { agent: "ui", text: "Main canvas animation landed; waiting on reduced-motion fallback.", time: "11:11" },
+      { agent: "review", text: "Keyboard trap found in command palette overlay.", time: "11:06" },
+      { agent: "planner", text: "Reordered workspaces to prioritize shipping path.", time: "11:01" }
+    ]
+  },
+  {
+    id: "moss", name: "Moss", repo: "~/work/moss-data", template: "Ops watch", spike: "now",
+    agents: [
+      { role: "ingest", summary: "Backfill worker is replaying 14k rows from archive.", status: "running", branch: "ops/backfill" },
+      { role: "db", summary: "Examining index pressure after wide workspace restore.", status: "needs-input", branch: "fix/index-plan" },
+      { role: "etl", summary: "Queue paused pending schema version match.", status: "queued", branch: "etl/schema" },
+      { role: "logs", summary: "P95 latency dipped after job burst normalized.", status: "idle", branch: "ops/latency" },
+      { role: "audit", summary: "Comparing failed rows against last clean checkpoint.", status: "running", branch: "ops/audit" }
+    ],
+    feed: [
+      { agent: "db", text: "Index planner is blocked on cardinality snapshot.", time: "11:16" },
+      { agent: "ingest", text: "Backfill throughput stable at 1.2k rows/min.", time: "11:14" },
+      { agent: "audit", text: "Three suspect rows promoted for manual review.", time: "11:08" }
+    ]
+  }
+];
+
+// ─── Terminal output generation ───
+
+const terminalOutputs = {
+  // Atlas
+  "atlas:planner": `<span class="prompt">planner $</span> <span class="cmd">knot plan --workspace atlas --scope api</span>
+
+<span class="out">Analyzing workspace graph...</span>
+<span class="out">Found 4 active agents, 2 pending handoffs</span>
+
+<span class="accent">Plan: API split strategy</span>
+<span class="out">  1. Extract auth endpoints   &rarr; coder-a</span>
+<span class="out">  2. Migrate schema v4        &rarr; queued</span>
+<span class="out">  3. Contract tests           &rarr; tests</span>
+<span class="out">  4. Deploy gate              &rarr; logs</span>
+
+<span class="yellow">? Select repo grouping strategy:</span>
+<span class="yellow">  &gt; by-domain</span>
+<span class="yellow">    by-team</span>
+<span class="yellow">    flat</span>
+<span class="dim">  Waiting for user input...</span><span class="cursor-blink"></span>`,
+
+  "atlas:coder-a": `<span class="prompt">coder-a $</span> <span class="cmd">git checkout feat/auth-slice</span>
+<span class="out">Switched to branch 'feat/auth-slice'</span>
+
+<span class="prompt">coder-a $</span> <span class="cmd">knot refactor server/bootstrap.ts --isolate auth</span>
+
+<span class="out">Scanning imports...</span>
+<span class="out">  server/bootstrap.ts    <span class="green">modified</span></span>
+<span class="out">  server/auth/adapter.ts <span class="green">created</span></span>
+<span class="out">  server/auth/index.ts   <span class="green">created</span></span>
+
+<span class="out">Extracting auth adapter...</span>
+<span class="green">  + export class AuthAdapter {</span>
+<span class="green">  +   constructor(private config: AuthConfig) {}</span>
+<span class="green">  +   async validate(token: string): Promise&lt;Session&gt; {</span>
+<span class="green">  +     return this.provider.verify(token);</span>
+<span class="green">  +   }</span>
+<span class="green">  + }</span>
+
+<span class="out">Running type check...</span>
+<span class="green">  0 errors, 0 warnings</span>
+
+<span class="prompt">coder-a $</span> <span class="cmd">knot test --affected</span>
+<span class="out">  auth/adapter   <span class="green">PASS</span>  (3 tests, 12ms)</span>
+<span class="out">  bootstrap      <span class="green">PASS</span>  (7 tests, 41ms)</span>
+<span class="out">  integration    <span class="green">PASS</span>  (2 tests, 89ms)</span>
+<span class="green">  All 12 tests passed</span><span class="cursor-blink"></span>`,
+
+  "atlas:coder-b": `<span class="prompt">coder-b $</span> <span class="cmd">git checkout feat/focus-rail</span>
+<span class="out">Switched to branch 'feat/focus-rail'</span>
+
+<span class="prompt">coder-b $</span> <span class="cmd">knot wire --component compare-overlay</span>
+
+<span class="out">Patching compare overlay...</span>
+<span class="out">  src/views/compare.tsx      <span class="green">modified</span></span>
+<span class="out">  src/hooks/useFocusPath.ts  <span class="green">modified</span></span>
+<span class="out">  src/rail/attention.tsx     <span class="green">modified</span></span>
+
+<span class="out">Focus path sync:</span>
+<span class="out">  primary  &rarr; coder-a  <span class="green">linked</span></span>
+<span class="out">  secondary &rarr; coder-b <span class="green">linked</span></span>
+
+<span class="out">Compare layout validated</span>
+<span class="out">  gap: 24px, panels: 2, divider: none</span>
+<span class="green">  Overlay ready</span>
+
+<span class="prompt">coder-b $</span> <span class="cmd">knot build --check</span>
+<span class="out">  Bundle: 142kb (gzip: 38kb)</span>
+<span class="green">  Build clean</span><span class="cursor-blink"></span>`,
+
+  "atlas:tests": `<span class="prompt">tests $</span> <span class="cmd">knot test:contracts --env mock,staging</span>
+
+<span class="dim">Queued. Waiting for coder-a to finish auth-slice...</span>
+<span class="dim">Position in queue: 1</span>
+
+<span class="out">Prepared suites:</span>
+<span class="out">  api/auth.contract.ts      14 assertions</span>
+<span class="out">  api/workspace.contract.ts  9 assertions</span>
+<span class="out">  api/stream.contract.ts    11 assertions</span>
+<span class="dim">  Total: 34 assertions across 2 environments</span>
+
+<span class="dim">Waiting...</span>`,
+
+  "atlas:logs": `<span class="prompt">logs $</span> <span class="cmd">knot stream --source edge,deploy,queue</span>
+
+<span class="dim">10:42:01</span> <span class="out">edge    request /api/workspace/atlas   <span class="green">200</span> 34ms</span>
+<span class="dim">10:42:03</span> <span class="out">edge    request /api/agents/status     <span class="green">200</span> 12ms</span>
+<span class="dim">10:42:18</span> <span class="out">deploy  hook received: feat/auth-slice</span>
+<span class="dim">10:42:19</span> <span class="out">deploy  build queued, position: 2</span>
+<span class="dim">10:43:01</span> <span class="out">edge    request /api/stream/feed      <span class="green">200</span> 8ms</span>
+<span class="dim">10:44:22</span> <span class="out">queue   job.process.batch completed  <span class="green">ok</span></span>
+<span class="dim">10:45:01</span> <span class="out">edge    request /api/workspace/atlas   <span class="green">200</span> 29ms</span>
+<span class="dim">10:48:33</span> <span class="out">edge    request /api/agents/planner    <span class="green">200</span> 15ms</span>
+
+<span class="dim">No errors in last 12 minutes</span>
+<span class="dim">Streaming...</span>`,
+
+  "atlas:research": `<span class="prompt">research $</span> <span class="cmd">knot scan --topic "terminal UX" --source notes,issues</span>
+
+<span class="out">Scanning 23 notes, 14 issues...</span>
+
+<span class="out">Found 6 relevant items:</span>
+<span class="out">  1. Keyboard conflict: Ctrl+B clashes with tmux prefix</span>
+<span class="out">  2. Focus trap in nested modal + command palette</span>
+<span class="out">  3. Tab order breaks after workspace switch</span>
+<span class="out">  4. Screen reader skips attention rail</span>
+<span class="out">  5. Reduced motion preference not respected</span>
+
+<span class="red">Error: Source 'issues' returned 403 - token expired</span>
+<span class="red">  Run: knot auth refresh --scope issues</span>
+
+<span class="dim">Partial results saved to docs/research/ux-scan.md</span>`,
+
+  // Rune
+  "rune:planner": `<span class="prompt">planner $</span> <span class="cmd">knot plan --workspace rune --pass routes,animation,a11y</span>
+
+<span class="out">Building task graph for rune-ui...</span>
+
+<span class="accent">Pass 1: Routes</span>
+<span class="out">  /            &rarr; hero shell    <span class="green">assigned: ui</span></span>
+<span class="out">  /workspace/* &rarr; focus view   <span class="green">assigned: ui</span></span>
+<span class="out">  /settings    &rarr; preferences  queued</span>
+
+<span class="accent">Pass 2: Animation</span>
+<span class="out">  card-stack entrance   priority: high</span>
+<span class="out">  view transitions      priority: high</span>
+<span class="out">  micro-interactions    priority: medium</span>
+
+<span class="accent">Pass 3: Accessibility</span>
+<span class="out">  contrast audit        &rarr; review</span>
+<span class="out">  keyboard flow         &rarr; review</span>
+<span class="out">  screen reader pass    &rarr; queued</span>
+
+<span class="out">Task graph ready. 11 tasks, 3 agents.</span><span class="cursor-blink"></span>`,
+
+  "rune:ui": `<span class="prompt">ui $</span> <span class="cmd">git checkout feat/hero-shell</span>
+<span class="out">Switched to branch 'feat/hero-shell'</span>
+
+<span class="prompt">ui $</span> <span class="cmd">knot build:component hero-shell --motion</span>
+
+<span class="out">Generating hero shell with card stack...</span>
+<span class="out">  src/shell/HeroShell.tsx      <span class="green">created</span></span>
+<span class="out">  src/shell/CardStack.tsx      <span class="green">created</span></span>
+<span class="out">  src/shell/motion.config.ts   <span class="green">created</span></span>
+
+<span class="out">Animation keyframes:</span>
+<span class="green">  + entrance: scale(0.96) &rarr; scale(1), 300ms ease-out</span>
+<span class="green">  + stack:    translateY(8px), opacity 0.6 &rarr; 1.0</span>
+<span class="green">  + dismiss:  translateX(-100%), 200ms ease-in</span>
+
+<span class="out">Lighthouse preview:</span>
+<span class="out">  Performance  <span class="green">96</span></span>
+<span class="out">  Accessibility <span class="yellow">84</span>  (needs reduced-motion)</span>
+<span class="out">  Best Practices <span class="green">100</span></span>
+
+<span class="yellow">Warning: prefers-reduced-motion not handled</span>
+<span class="dim">Waiting on fallback implementation...</span><span class="cursor-blink"></span>`,
+
+  "rune:review": `<span class="prompt">review $</span> <span class="cmd">knot audit --contrast --keyboard</span>
+
+<span class="out">Running accessibility audit...</span>
+
+<span class="out">Contrast check:</span>
+<span class="out">  header text     #e8e8ec on #111113  <span class="green">AAA 15.2:1</span></span>
+<span class="out">  muted text      #6e6e7a on #111113  <span class="yellow">AA  4.8:1</span></span>
+<span class="out">  rail status     #4a4a52 on #111113  <span class="red">FAIL 2.9:1</span></span>
+
+<span class="out">Keyboard flow:</span>
+<span class="out">  workspace nav   <span class="green">pass</span></span>
+<span class="out">  rail agents     <span class="green">pass</span></span>
+<span class="out">  mode toggle     <span class="green">pass</span></span>
+<span class="red">  command palette <span class="red">TRAP</span> - focus not released on Escape</span>
+
+<span class="yellow">? Fix keyboard trap before proceeding?</span>
+<span class="yellow">  &gt; yes, patch now</span>
+<span class="yellow">    skip, flag as issue</span>
+<span class="dim">  Waiting for input...</span><span class="cursor-blink"></span>`,
+
+  "rune:tests": `<span class="prompt">tests $</span> <span class="cmd">knot test:snapshot --suite nav</span>
+
+<span class="dim">Queued. Waiting for ui to land hero-shell...</span>
+<span class="dim">Position in queue: 1</span>
+
+<span class="out">Prepared:</span>
+<span class="out">  nav/workspace-switch.snap   3 snapshots</span>
+<span class="out">  nav/focus-change.snap       5 snapshots</span>
+<span class="out">  nav/mode-toggle.snap        3 snapshots</span>
+<span class="dim">  Total: 11 snapshots</span>
+
+<span class="dim">Waiting...</span>`,
+
+  "rune:notes": `<span class="prompt">notes $</span> <span class="cmd">knot summarize --scope decisions,copy</span>
+
+<span class="out">Scanning recent decisions...</span>
+
+<span class="out">Design decisions (last 24h):</span>
+<span class="out">  1. Removed all borders; using bg tints only</span>
+<span class="out">  2. Single accent color: violet #8b7cf6</span>
+<span class="out">  3. Status dots replace badges (6px)</span>
+<span class="out">  4. Feed shows 4 items max, no header</span>
+
+<span class="out">Copy changes:</span>
+<span class="out">  "Workspace" &rarr; kept (clear enough)</span>
+<span class="out">  "Agent rail" &rarr; removed (no label needed)</span>
+<span class="out">  "Event stream" &rarr; removed (self-evident)</span>
+
+<span class="dim">Saved to docs/notes/decisions-0312.md</span>`,
+
+  // Moss
+  "moss:ingest": `<span class="prompt">ingest $</span> <span class="cmd">knot backfill --source archive --rows 14000</span>
+
+<span class="out">Starting backfill from archive...</span>
+<span class="out">  Source: moss-data/archive/2026-03-11</span>
+<span class="out">  Target: moss-data/live</span>
+<span class="out">  Rows:   14,000</span>
+
+<span class="out">Progress:</span>
+<span class="out">  [=============================-------]  78%</span>
+<span class="out">  Processed: 10,920 / 14,000</span>
+<span class="out">  Throughput: 1,218 rows/min</span>
+<span class="out">  ETA: ~2m 32s</span>
+
+<span class="out">Recent batches:</span>
+<span class="dim">  11:14:22</span> <span class="out">batch-441  500 rows  <span class="green">ok</span>  980ms</span>
+<span class="dim">  11:14:48</span> <span class="out">batch-442  500 rows  <span class="green">ok</span>  1.1s</span>
+<span class="dim">  11:15:14</span> <span class="out">batch-443  420 rows  <span class="green">ok</span>  870ms</span>
+
+<span class="out">Running...</span><span class="cursor-blink"></span>`,
+
+  "moss:db": `<span class="prompt">db $</span> <span class="cmd">knot index:analyze --after restore</span>
+
+<span class="out">Analyzing index pressure...</span>
+
+<span class="out">Table: workspaces</span>
+<span class="out">  idx_workspace_id     size: 2.4MB   <span class="green">healthy</span></span>
+<span class="out">  idx_workspace_name   size: 1.1MB   <span class="green">healthy</span></span>
+
+<span class="out">Table: events</span>
+<span class="out">  idx_event_ts         size: 18.7MB  <span class="yellow">bloated +40%</span></span>
+<span class="out">  idx_event_agent      size: 4.2MB   <span class="green">healthy</span></span>
+<span class="out">  idx_event_workspace  size: 12.1MB  <span class="yellow">bloated +25%</span></span>
+
+<span class="yellow">? Rebuild bloated indexes now?</span>
+<span class="yellow">  &gt; rebuild during low-traffic window</span>
+<span class="yellow">    rebuild now (may impact queries)</span>
+<span class="yellow">    skip for now</span>
+<span class="dim">  Need cardinality snapshot first...</span><span class="cursor-blink"></span>`,
+
+  "moss:etl": `<span class="prompt">etl $</span> <span class="cmd">knot etl:run --pipeline daily</span>
+
+<span class="out">Checking schema compatibility...</span>
+<span class="out">  Source schema: v3.2.1</span>
+<span class="out">  Target schema: v3.3.0</span>
+<span class="red">  Mismatch detected</span>
+
+<span class="out">Incompatible fields:</span>
+<span class="out">  events.metadata   jsonb &rarr; jsonb (new keys)</span>
+<span class="out">  events.context    text  &rarr; jsonb (type change)</span>
+
+<span class="dim">Pipeline paused. Queued pending schema migration.</span>
+<span class="dim">Run: knot schema:migrate --to v3.3.0</span>
+
+<span class="dim">Waiting...</span>`,
+
+  "moss:logs": `<span class="prompt">logs $</span> <span class="cmd">knot metrics --p95 --window 30m</span>
+
+<span class="out">Latency report (last 30 minutes):</span>
+
+<span class="out">  11:00  p95: 142ms  <span class="yellow">|========</span></span>
+<span class="out">  11:05  p95: 189ms  <span class="yellow">|==========</span></span>
+<span class="out">  11:10  p95: 312ms  <span class="red">|=================</span></span>
+<span class="out">  11:15  p95: 87ms   <span class="green">|=====</span></span>
+<span class="out">  11:20  p95: 64ms   <span class="green">|===</span></span>
+<span class="out">  11:25  p95: 71ms   <span class="green">|====</span></span>
+
+<span class="out">Peak at 11:10 correlates with backfill burst</span>
+<span class="out">Normalized after batch throttle applied</span>
+
+<span class="dim">Monitoring...</span>`,
+
+  "moss:audit": `<span class="prompt">audit $</span> <span class="cmd">knot audit:compare --against checkpoint-0311</span>
+
+<span class="out">Comparing against last clean checkpoint...</span>
+<span class="out">  Checkpoint: 2026-03-11T23:00:00Z</span>
+<span class="out">  Current:    2026-03-12T11:15:00Z</span>
+
+<span class="out">Rows analyzed: 14,000</span>
+<span class="out">  Clean:     13,847  <span class="green">98.9%</span></span>
+<span class="out">  Modified:     150  reviewed</span>
+<span class="red">  Suspect:        3  promoted for manual review</span>
+
+<span class="out">Suspect rows:</span>
+<span class="out">  row-8812   events   metadata field truncated</span>
+<span class="out">  row-9104   events   timestamp drift &gt; 5s</span>
+<span class="out">  row-12440  events   null context after migration</span>
+
+<span class="out">Report saved to audit/report-0312.json</span>
+<span class="out">Continuing scan...</span><span class="cursor-blink"></span>`
+};
+
+// ─── State ───
+
+let currentWorkspace = 0;
+let currentMode = 0; // 0=focus, 1=compare, 2=mission
+let currentAgent = 0;
+let compareSecondary = 1;
+
+const modeNames = ["Focus", "Compare", "Mission"];
+
+// ─── Rendering ───
+
+function getStatusWord(status) {
+  const map = { "running": "run", "needs-input": "input", "queued": "queue", "idle": "idle", "error": "error" };
+  return map[status] || status;
+}
+
+function getTerminalOutput(workspaceId, role) {
+  const key = workspaceId + ":" + role;
+  return terminalOutputs[key] || `<span class="prompt">${role} $</span> <span class="dim">No output yet</span>`;
+}
+
+function renderWorkspaceTabs() {
+  const el = document.getElementById("workspaces");
+  el.innerHTML = workspaces.map((ws, i) =>
+    `<span class="workspace-link${i === currentWorkspace ? ' active' : ''}" data-ws="${i}">${ws.name}</span>`
+  ).join("");
+
+  el.querySelectorAll(".workspace-link").forEach(link => {
+    link.addEventListener("click", () => {
+      currentWorkspace = parseInt(link.dataset.ws);
+      currentAgent = 0;
+      compareSecondary = Math.min(1, ws().agents.length - 1);
+      render();
+    });
+  });
+}
+
+function renderMeta() {
+  const w = ws();
+  document.getElementById("workspaceMeta").innerHTML =
+    `<span class="meta-item"><span>${w.repo}</span></span>` +
+    `<span class="meta-item">${w.template}</span>` +
+    `<span class="meta-item">${w.spike}</span>`;
+}
+
+function renderModeDots() {
+  document.querySelectorAll(".mode-dot").forEach((dot, i) => {
+    dot.classList.toggle("active", i === currentMode);
+  });
+  document.getElementById("modeLabel").textContent = modeNames[currentMode];
+}
+
+function renderViews() {
+  document.getElementById("viewFocus").classList.toggle("active", currentMode === 0);
+  document.getElementById("viewCompare").classList.toggle("active", currentMode === 1);
+  document.getElementById("viewMission").classList.toggle("active", currentMode === 2);
+}
+
+function renderRail(containerId) {
+  const w = ws();
+  const el = document.getElementById(containerId);
+  el.innerHTML = w.agents.map((agent, i) =>
+    `<div class="rail-agent${i === currentAgent ? ' active' : ''}" data-agent="${i}">` +
+      `<div class="rail-dot ${agent.status}"></div>` +
+      `<span class="rail-name">${agent.role}</span>` +
+      `<span class="rail-status">${getStatusWord(agent.status)}</span>` +
+    `</div>`
+  ).join("");
+
+  el.querySelectorAll(".rail-agent").forEach(item => {
+    item.addEventListener("click", () => {
+      currentAgent = parseInt(item.dataset.agent);
+      render();
+    });
+  });
+}
+
+function renderFocusTerminal() {
+  const w = ws();
+  const agent = w.agents[currentAgent];
+  document.getElementById("focusRole").textContent = agent.role + "  ·  " + agent.branch;
+  document.getElementById("focusOutput").innerHTML = getTerminalOutput(w.id, agent.role);
+}
+
+function renderCompare() {
+  const w = ws();
+  const left = w.agents[currentAgent];
+  const sec = compareSecondary >= w.agents.length ? 0 : compareSecondary;
+  const right = w.agents[sec];
+
+  document.getElementById("compareLeftRole").textContent = left.role + "  ·  " + left.branch;
+  document.getElementById("compareLeftOutput").innerHTML = getTerminalOutput(w.id, left.role);
+  document.getElementById("compareRightRole").textContent = right.role + "  ·  " + right.branch;
+  document.getElementById("compareRightOutput").innerHTML = getTerminalOutput(w.id, right.role);
+}
+
+function renderMission() {
+  const w = ws();
+  const grid = document.getElementById("missionGrid");
+  grid.innerHTML = w.agents.map((agent, i) =>
+    `<div class="mission-card" data-agent="${i}">` +
+      `<div class="mission-card-top">` +
+        `<div class="rail-dot ${agent.status}"></div>` +
+        `<span class="mission-card-name">${agent.role}</span>` +
+        `<span class="mission-card-branch">${agent.branch}</span>` +
+      `</div>` +
+      `<div class="mission-card-summary">${agent.summary}</div>` +
+    `</div>`
+  ).join("");
+
+  grid.querySelectorAll(".mission-card").forEach(card => {
+    card.addEventListener("click", () => {
+      currentAgent = parseInt(card.dataset.agent);
+      currentMode = 0;
+      render();
+    });
+  });
+}
+
+function renderFeed(containerId) {
+  const w = ws();
+  const items = w.feed.slice(0, 4);
+  const el = document.getElementById(containerId);
+  el.innerHTML = items.map(item =>
+    `<div class="feed-item">` +
+      `<span class="feed-agent">${item.agent}</span>` +
+      `<span class="feed-text">${item.text}</span>` +
+      `<span class="feed-time">${item.time}</span>` +
+    `</div>`
+  ).join("");
+}
+
+function ws() {
+  return workspaces[currentWorkspace];
+}
+
+function render() {
+  renderWorkspaceTabs();
+  renderMeta();
+  renderModeDots();
+  renderViews();
+
+  if (currentMode === 0) {
+    renderRail("focusRail");
+    renderFocusTerminal();
+    renderFeed("focusFeed");
+  } else if (currentMode === 1) {
+    renderCompare();
+    renderFeed("compareFeed");
+  } else {
+    renderMission();
+    renderFeed("missionFeed");
+  }
+}
+
+// ─── Events ───
+
+document.querySelectorAll(".mode-dot").forEach(dot => {
+  dot.addEventListener("click", () => {
+    currentMode = parseInt(dot.dataset.mode);
+    render();
+  });
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "1") { currentMode = 0; render(); }
+  if (e.key === "2") { currentMode = 1; render(); }
+  if (e.key === "3") { currentMode = 2; render(); }
+
+  // Arrow keys to navigate agents in focus mode
+  if (currentMode === 0) {
+    const agents = ws().agents;
+    if (e.key === "ArrowDown" || e.key === "j") {
+      e.preventDefault();
+      currentAgent = (currentAgent + 1) % agents.length;
+      render();
+    }
+    if (e.key === "ArrowUp" || e.key === "k") {
+      e.preventDefault();
+      currentAgent = (currentAgent - 1 + agents.length) % agents.length;
+      render();
+    }
+  }
+
+  // In compare mode, Tab switches secondary
+  if (currentMode === 1 && e.key === "Tab") {
+    e.preventDefault();
+    const agents = ws().agents;
+    compareSecondary = (compareSecondary + 1) % agents.length;
+    if (compareSecondary === currentAgent) {
+      compareSecondary = (compareSecondary + 1) % agents.length;
+    }
+    render();
+  }
+});
+
+// ─── Heartbeat: subtle output append every 7s ───
+
+setInterval(() => {
+  const w = ws();
+  const running = w.agents.filter(a => a.status === "running");
+  if (running.length === 0) return;
+
+  // Find a visible terminal and nudge its scroll
+  const outputs = document.querySelectorAll(".terminal-output");
+  outputs.forEach(el => {
+    if (el.scrollHeight > el.clientHeight) {
+      el.scrollTop = el.scrollHeight;
+    }
+  });
+}, 7000);
+
+// ─── Init ───
+
+render();
+</script>
+
+</body>
+</html>

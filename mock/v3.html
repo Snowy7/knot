@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KNOT - Terminal Workspace Manager</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --blue:#00d4ff;--pink:#ff0080;--lime:#39ff14;--grey:#555;--err:#ff2d55;
+  --bg:#000;--surface:#0a0a0a;--border:rgba(0,212,255,0.15);
+  --text:#c8c8c8;--term-text:#d0ffd0;
+  --blue-glow:0 0 20px rgba(0,212,255,0.3),0 0 40px rgba(0,212,255,0.1);
+  --pink-glow:0 0 20px rgba(255,0,128,0.3),0 0 40px rgba(255,0,128,0.1);
+  --lime-glow:0 0 20px rgba(57,255,20,0.3),0 0 40px rgba(57,255,20,0.1);
+  --err-glow:0 0 20px rgba(255,45,85,0.3),0 0 40px rgba(255,45,85,0.1);
+  --mono:'SF Mono','Cascadia Code','Fira Code','Consolas',monospace;
+  --heading:'Orbitron',sans-serif;
+}
+html,body{height:100%;overflow:hidden}
+body{
+  background:var(--bg);color:var(--text);
+  font-family:var(--mono);font-size:13px;
+  display:flex;flex-direction:column;
+}
+::selection{background:rgba(0,212,255,0.25);color:#fff}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,212,255,0.2);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:rgba(0,212,255,0.4)}
+
+/* ── Animations ── */
+@keyframes pulse-run{
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:0.5;transform:scale(0.85)}
+}
+@keyframes blink-input{
+  0%,100%{opacity:1}
+  50%{opacity:0.15}
+}
+@keyframes glow-breathe{
+  0%,100%{opacity:0.6}
+  50%{opacity:1}
+}
+@keyframes feed-slide{
+  from{opacity:0;transform:translateY(6px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes scanline-scroll{
+  0%{background-position:0 0}
+  100%{background-position:0 4px}
+}
+
+/* ── Top Bar ── */
+.topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;height:44px;min-height:44px;
+  border-bottom:1px solid var(--border);
+  background:linear-gradient(180deg,#0a0a0c 0%,#000 100%);
+  position:relative;z-index:10;
+}
+.topbar-left{display:flex;align-items:center;gap:16px}
+.logo{
+  font-family:var(--heading);font-size:14px;font-weight:700;
+  letter-spacing:3px;color:#fff;display:flex;align-items:center;gap:8px;
+  user-select:none;
+}
+.logo .diamond{color:var(--blue);font-size:12px}
+
+.workspace-tabs{display:flex;gap:2px}
+.ws-tab{
+  font-family:var(--heading);font-size:10.5px;font-weight:500;
+  letter-spacing:2px;text-transform:uppercase;
+  padding:6px 16px;cursor:pointer;
+  color:#666;position:relative;
+  border-radius:4px 4px 0 0;
+  transition:color 0.25s,background 0.25s;
+  user-select:none;
+}
+.ws-tab:hover{color:#aaa;background:rgba(0,212,255,0.04)}
+.ws-tab.active{color:var(--blue)}
+.ws-tab.active::after{
+  content:'';position:absolute;bottom:-1px;left:8px;right:8px;height:2px;
+  background:var(--blue);
+  box-shadow:0 0 8px rgba(0,212,255,0.6),0 0 16px rgba(0,212,255,0.2);
+  border-radius:1px;
+}
+
+.topbar-right{display:flex;align-items:center;gap:6px}
+.mode-btn{
+  width:26px;height:26px;border:1px solid rgba(255,255,255,0.1);
+  border-radius:4px;display:flex;align-items:center;justify-content:center;
+  cursor:pointer;color:#555;font-size:9px;font-family:var(--heading);
+  font-weight:600;letter-spacing:1px;transition:all 0.25s;user-select:none;
+}
+.mode-btn:hover{border-color:rgba(0,212,255,0.3);color:#999}
+.mode-btn.active{
+  border-color:rgba(0,212,255,0.5);color:var(--blue);
+  box-shadow:0 0 10px rgba(0,212,255,0.15);
+}
+
+/* ── Main Layout ── */
+.main{display:flex;flex:1;overflow:hidden}
+
+/* ── Sidebar ── */
+.sidebar{
+  width:180px;min-width:180px;
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  background:#050508;
+  overflow-y:auto;
+}
+.sidebar-section{padding:14px 0 8px 14px}
+.sidebar-label{
+  font-family:var(--heading);font-size:9px;font-weight:600;
+  letter-spacing:2.5px;color:#444;margin-bottom:10px;
+}
+.agent-list{display:flex;flex-direction:column;gap:1px}
+.agent-row{
+  display:flex;align-items:center;gap:8px;
+  padding:7px 12px 7px 0;cursor:pointer;
+  position:relative;transition:background 0.2s;
+  border-radius:0 4px 4px 0;
+}
+.agent-row:hover{background:rgba(255,255,255,0.03)}
+.agent-row.active{background:rgba(0,212,255,0.06)}
+.agent-edge{
+  width:2px;min-width:2px;height:100%;position:absolute;left:0;top:0;
+  border-radius:0 1px 1px 0;
+}
+.agent-dot{
+  width:6px;height:6px;border-radius:50%;flex-shrink:0;margin-left:14px;
+}
+.agent-dot.running{animation:pulse-run 2s ease-in-out infinite}
+.agent-dot.needs-input{animation:blink-input 1.2s step-end infinite}
+.agent-name{
+  font-size:12px;color:#888;transition:color 0.2s;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+}
+.agent-row.active .agent-name{color:#ddd}
+.agent-row:hover .agent-name{color:#bbb}
+
+.sidebar-divider{
+  height:1px;margin:8px 14px;
+  background:linear-gradient(90deg,var(--border),transparent);
+}
+.signals{padding:8px 14px;display:flex;flex-direction:column;gap:6px}
+.signal-row{display:flex;align-items:center;gap:7px;font-size:11px;color:#666}
+.signal-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.signal-count{color:#888;font-weight:600}
+
+.ws-meta{
+  padding:10px 14px;margin-top:auto;
+  border-top:1px solid var(--border);
+  display:flex;flex-direction:column;gap:4px;
+}
+.ws-meta-line{font-size:10px;color:#444;display:flex;gap:6px}
+.ws-meta-line span{color:#666}
+
+/* ── Center Panel ── */
+.center{flex:1;display:flex;flex-direction:column;overflow:hidden;padding:10px 14px 10px 14px}
+
+/* ── Terminal ── */
+.terminal-wrap{
+  flex:1;display:flex;flex-direction:column;
+  border:1px solid var(--border);border-radius:4px;
+  overflow:hidden;position:relative;
+  transition:box-shadow 0.4s,border-color 0.4s;
+}
+.terminal-wrap.glow-blue{box-shadow:var(--blue-glow);border-color:rgba(0,212,255,0.25)}
+.terminal-wrap.glow-pink{box-shadow:var(--pink-glow);border-color:rgba(255,0,128,0.25)}
+.terminal-wrap.glow-lime{box-shadow:var(--lime-glow);border-color:rgba(57,255,20,0.25)}
+.terminal-wrap.glow-err{box-shadow:var(--err-glow);border-color:rgba(255,45,85,0.25)}
+
+.terminal-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:6px 12px;
+  background:rgba(255,255,255,0.02);
+  border-bottom:1px solid var(--border);
+}
+.terminal-title{
+  font-family:var(--heading);font-size:10px;font-weight:600;
+  letter-spacing:2px;text-transform:uppercase;
+  display:flex;align-items:center;gap:10px;
+}
+.terminal-title .role-name{color:#ddd}
+.terminal-title .branch{color:#555;font-family:var(--mono);font-size:10px;letter-spacing:0;font-weight:400}
+.terminal-title .separator{color:#333}
+.terminal-status-badge{
+  font-size:9px;letter-spacing:1px;text-transform:uppercase;
+  padding:2px 8px;border-radius:3px;font-weight:600;
+}
+
+.terminal-body{
+  flex:1;overflow-y:auto;padding:12px 14px;
+  font-size:12.5px;line-height:1.7;
+  color:var(--term-text);position:relative;
+  background:#000;
+}
+.terminal-body.scanlines::after{
+  content:'';position:absolute;inset:0;pointer-events:none;
+  background:repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(255,255,255,0.03) 2px,
+    rgba(255,255,255,0.03) 4px
+  );
+  animation:scanline-scroll 0.3s linear infinite;
+}
+.term-line{white-space:pre-wrap;word-break:break-all}
+.term-line .prompt{color:var(--blue);font-weight:600}
+.term-line .cmd{color:#fff}
+.term-line .comment{color:#555}
+.term-line .success{color:var(--lime)}
+.term-line .warn{color:#ff9500}
+.term-line .err{color:var(--err)}
+.term-line .info{color:var(--blue)}
+.term-line .dim{color:#444}
+.term-cursor{
+  display:inline-block;width:7px;height:14px;
+  background:var(--lime);opacity:0.7;
+  animation:blink-input 1s step-end infinite;
+  vertical-align:text-bottom;margin-left:2px;
+}
+
+/* ── Compare Mode ── */
+.compare-container{
+  flex:1;display:none;gap:0;overflow:hidden;
+}
+.compare-container.visible{display:flex}
+.compare-divider{
+  width:1px;background:var(--blue);position:relative;
+  box-shadow:0 0 12px rgba(0,212,255,0.4),0 0 24px rgba(0,212,255,0.15);
+  flex-shrink:0;
+}
+.compare-side{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.compare-side .terminal-wrap{border-radius:0;border:none;border-bottom:1px solid var(--border)}
+.compare-side:first-child .terminal-wrap{border-right:none}
+.compare-side:last-child .terminal-wrap{border-left:none}
+
+/* ── Mission Control ── */
+.mission-grid{
+  display:none;flex:1;
+  grid-template-columns:repeat(auto-fill,minmax(280px,1fr));
+  gap:8px;overflow-y:auto;padding:2px;
+  align-content:start;
+}
+.mission-grid.visible{display:grid}
+.mission-card{
+  border:1px solid var(--border);border-radius:4px;
+  display:flex;flex-direction:column;
+  transition:box-shadow 0.3s,border-color 0.3s;
+  overflow:hidden;cursor:pointer;
+}
+.mission-card:hover{border-color:rgba(0,212,255,0.3)}
+.mission-card .terminal-header{padding:5px 10px}
+.mission-card .terminal-title{font-size:9px}
+.mission-card .terminal-body{
+  height:120px;min-height:120px;max-height:120px;
+  font-size:10.5px;line-height:1.5;padding:8px 10px;
+  overflow:hidden;
+}
+
+/* ── Feed ── */
+.feed-section{
+  min-height:90px;max-height:110px;
+  border-top:1px solid var(--border);
+  margin-top:10px;padding-top:8px;
+  display:flex;flex-direction:column;
+  overflow:hidden;
+}
+.feed-label{
+  font-family:var(--heading);font-size:9px;font-weight:600;
+  letter-spacing:2.5px;color:#444;margin-bottom:6px;
+  display:flex;align-items:center;gap:8px;
+}
+.feed-label::after{
+  content:'';flex:1;height:1px;
+  background:linear-gradient(90deg,rgba(0,212,255,0.2),transparent);
+}
+.feed-list{overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+.feed-entry{
+  font-size:11.5px;line-height:1.5;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;
+  animation:feed-slide 0.3s ease-out;
+}
+.feed-entry .marker{color:#333;margin-right:4px}
+.feed-entry .ftime{color:#444;margin-right:6px}
+.feed-entry .fagent{font-weight:600;margin-right:6px}
+.feed-entry .ftext{color:#777}
+
+/* ── Kbd Hints ── */
+.kbd-hints{
+  display:flex;gap:12px;align-items:center;
+  padding:6px 14px;border-top:1px solid var(--border);
+  background:#030305;min-height:28px;
+}
+.kbd-hint{font-size:10px;color:#333;display:flex;align-items:center;gap:4px}
+.kbd-hint kbd{
+  display:inline-block;padding:1px 5px;border:1px solid #222;
+  border-radius:3px;color:#555;font-size:9px;font-family:var(--mono);
+  background:#0a0a0a;
+}
+
+/* ── Heartbeat indicator ── */
+.heartbeat{
+  width:5px;height:5px;border-radius:50%;
+  background:var(--lime);margin-left:12px;
+  animation:pulse-run 7s ease-in-out infinite;
+}
+</style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="logo"><span class="diamond">&#9670;</span> KNOT <div class="heartbeat"></div></div>
+    <div class="workspace-tabs" id="wsTabs"></div>
+  </div>
+  <div class="topbar-right">
+    <div class="mode-btn active" data-mode="focus" title="Focus (F)">F</div>
+    <div class="mode-btn" data-mode="compare" title="Compare (C)">C</div>
+    <div class="mode-btn" data-mode="mission" title="Mission (M)">M</div>
+  </div>
+</div>
+
+<!-- Main -->
+<div class="main">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-section">
+      <div class="sidebar-label">AGENTS</div>
+      <div class="agent-list" id="agentList"></div>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="signals" id="signals"></div>
+    <div class="ws-meta" id="wsMeta"></div>
+  </div>
+
+  <!-- Center -->
+  <div class="center">
+    <!-- Focus mode -->
+    <div class="terminal-wrap" id="focusTerminal" style="display:flex">
+      <div class="terminal-header">
+        <div class="terminal-title">
+          <span class="role-name" id="focusRole">--</span>
+          <span class="separator">&#8212;</span>
+          <span class="branch" id="focusBranch">--</span>
+        </div>
+        <div class="terminal-status-badge" id="focusBadge">--</div>
+      </div>
+      <div class="terminal-body scanlines" id="focusBody"></div>
+    </div>
+
+    <!-- Compare mode -->
+    <div class="compare-container" id="compareContainer">
+      <div class="compare-side">
+        <div class="terminal-wrap" id="compareLeft">
+          <div class="terminal-header">
+            <div class="terminal-title">
+              <span class="role-name" id="cmpLeftRole">--</span>
+              <span class="separator">&#8212;</span>
+              <span class="branch" id="cmpLeftBranch">--</span>
+            </div>
+          </div>
+          <div class="terminal-body scanlines" id="cmpLeftBody"></div>
+        </div>
+      </div>
+      <div class="compare-divider"></div>
+      <div class="compare-side">
+        <div class="terminal-wrap" id="compareRight">
+          <div class="terminal-header">
+            <div class="terminal-title">
+              <span class="role-name" id="cmpRightRole">--</span>
+              <span class="separator">&#8212;</span>
+              <span class="branch" id="cmpRightBranch">--</span>
+            </div>
+          </div>
+          <div class="terminal-body scanlines" id="cmpRightBody"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mission control -->
+    <div class="mission-grid" id="missionGrid"></div>
+
+    <!-- Feed -->
+    <div class="feed-section">
+      <div class="feed-label">LIVE FEED</div>
+      <div class="feed-list" id="feedList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Keyboard hints -->
+<div class="kbd-hints">
+  <div class="kbd-hint"><kbd>F</kbd> Focus</div>
+  <div class="kbd-hint"><kbd>C</kbd> Compare</div>
+  <div class="kbd-hint"><kbd>M</kbd> Mission</div>
+  <div class="kbd-hint"><kbd>&uarr;</kbd><kbd>&darr;</kbd> Navigate</div>
+  <div class="kbd-hint"><kbd>1</kbd>-<kbd>9</kbd> Agent</div>
+</div>
+
+<script>
+// ── Data ──
+const workspaces = [
+  {
+    id:"atlas",name:"Atlas",repo:"~/work/atlas-core",template:"Full swarm",spike:"2m ago",
+    agents:[
+      {role:"planner",summary:"Plan API split, queue schema migration, stage agent handoffs.",status:"needs-input",branch:"feat/workspace-stream"},
+      {role:"coder-a",summary:"Refactor server bootstrap and keep auth adapter isolated.",status:"running",branch:"feat/auth-slice"},
+      {role:"coder-b",summary:"Wiring compare overlay and preserving active focus path.",status:"running",branch:"feat/focus-rail"},
+      {role:"tests",summary:"Replay API contract suite against mock and staging outputs.",status:"queued",branch:"test/contracts"},
+      {role:"logs",summary:"Streaming edge logs, deploy hooks, and queue failures.",status:"idle",branch:"ops/live"},
+      {role:"research",summary:"Collect terminal UX notes and keyboard priority conflicts.",status:"error",branch:"docs/research"}
+    ],
+    feed:[
+      {agent:"coder-b",text:"Compare mode now mirrors primary focus and secondary selection.",time:"11:02"},
+      {agent:"planner",text:"Waiting on user input for repo grouping strategy.",time:"10:59"},
+      {agent:"logs",text:"No new deploy errors in the last 12 minutes.",time:"10:54"},
+      {agent:"research",text:"Found collision between workspace switch and tmux defaults.",time:"10:48"}
+    ]
+  },
+  {
+    id:"rune",name:"Rune",repo:"~/work/rune-ui",template:"Frontend train",spike:"7m ago",
+    agents:[
+      {role:"planner",summary:"Split tasks by route, animation pass, and accessibility audit.",status:"running",branch:"feat/plan-pass"},
+      {role:"ui",summary:"Building motion-heavy shell with card stack navigation.",status:"running",branch:"feat/hero-shell"},
+      {role:"review",summary:"Checking contrast and keyboard flow in mission control.",status:"needs-input",branch:"chore/review"},
+      {role:"tests",summary:"Running snapshot and navigation test queue.",status:"queued",branch:"test/nav"},
+      {role:"notes",summary:"Summarizing design decisions and copy changes.",status:"idle",branch:"docs/notes"}
+    ],
+    feed:[
+      {agent:"ui",text:"Main canvas animation landed; waiting on reduced-motion fallback.",time:"11:11"},
+      {agent:"review",text:"Keyboard trap found in command palette overlay.",time:"11:06"},
+      {agent:"planner",text:"Reordered workspaces to prioritize shipping path.",time:"11:01"}
+    ]
+  },
+  {
+    id:"moss",name:"Moss",repo:"~/work/moss-data",template:"Ops watch",spike:"now",
+    agents:[
+      {role:"ingest",summary:"Backfill worker is replaying 14k rows from archive.",status:"running",branch:"ops/backfill"},
+      {role:"db",summary:"Examining index pressure after wide workspace restore.",status:"needs-input",branch:"fix/index-plan"},
+      {role:"etl",summary:"Queue paused pending schema version match.",status:"queued",branch:"etl/schema"},
+      {role:"logs",summary:"P95 latency dipped after job burst normalized.",status:"idle",branch:"ops/latency"},
+      {role:"audit",summary:"Comparing failed rows against last clean checkpoint.",status:"running",branch:"ops/audit"}
+    ],
+    feed:[
+      {agent:"db",text:"Index planner is blocked on cardinality snapshot.",time:"11:16"},
+      {agent:"ingest",text:"Backfill throughput stable at 1.2k rows/min.",time:"11:14"},
+      {agent:"audit",text:"Three suspect rows promoted for manual review.",time:"11:08"}
+    ]
+  }
+];
+
+// ── Terminal output generator ──
+const terminalOutputs = {
+  "atlas": {
+    "planner": [
+      {prompt:"knot plan",cmd:""},
+      {text:"[planner] Analyzing workspace: atlas-core",cls:"info"},
+      {text:"  Identified 4 service boundaries for API split",cls:""},
+      {text:"  Schema migration: 3 tables affected (users, sessions, tokens)",cls:""},
+      {text:"  Dependency graph resolved. Handoff order:",cls:""},
+      {text:"    1. coder-a: auth-adapter isolation",cls:"dim"},
+      {text:"    2. coder-b: focus-rail wiring",cls:"dim"},
+      {text:"    3. tests: contract replay",cls:"dim"},
+      {text:"",cls:""},
+      {text:"  WARN  Repo grouping strategy not confirmed by operator.",cls:"warn"},
+      {text:"  >> Awaiting input: group-by-domain or group-by-team?",cls:"warn"},
+      {text:"",cls:""},
+      {prompt:"_",cmd:"",cursor:true}
+    ],
+    "coder-a": [
+      {prompt:"git checkout",cmd:" feat/auth-slice"},
+      {text:"Switched to branch 'feat/auth-slice'",cls:"success"},
+      {prompt:"knot run",cmd:" refactor:bootstrap"},
+      {text:"[coder-a] Starting server bootstrap refactor...",cls:"info"},
+      {text:"  Extracting auth adapter from monolith...",cls:""},
+      {text:"  - Moved AuthProvider to packages/auth/src/provider.ts",cls:"success"},
+      {text:"  - Isolated token refresh logic (327 lines extracted)",cls:"success"},
+      {text:"  - Updated 14 import paths across 8 modules",cls:""},
+      {text:"  - Running type check...",cls:""},
+      {text:"    TSC: 0 errors, 2 warnings (unused imports)",cls:"success"},
+      {text:"  - Bundle delta: -4.2kb gzipped",cls:"success"},
+      {text:"",cls:""},
+      {text:"  [stream] Watching for changes...",cls:"dim"},
+      {text:"  [12:03:22] Recompiled in 340ms",cls:"dim"}
+    ],
+    "coder-b": [
+      {prompt:"git checkout",cmd:" feat/focus-rail"},
+      {text:"Switched to branch 'feat/focus-rail'",cls:"success"},
+      {prompt:"knot run",cmd:" overlay:compare"},
+      {text:"[coder-b] Wiring compare overlay...",cls:"info"},
+      {text:"  - Registered focus-rail context provider",cls:""},
+      {text:"  - Compare panes now sync scroll position",cls:"success"},
+      {text:"  - Active path preserved across split toggle",cls:"success"},
+      {text:"  - Edge case: nested focus retains z-index stack",cls:""},
+      {text:"  WARN  Mirror flicker on rapid toggle (< 100ms)",cls:"warn"},
+      {text:"  - Added debounce guard (150ms threshold)",cls:"success"},
+      {text:"",cls:""},
+      {text:"  [stream] Compare overlay active. 2 panes synced.",cls:"dim"},
+      {text:"  [12:04:01] Hot reload OK",cls:"dim"}
+    ],
+    "tests": [
+      {prompt:"knot test",cmd:" --suite=contracts --target=mock,staging"},
+      {text:"[tests] Queued. Waiting for runner slot...",cls:"dim"},
+      {text:"  Position in queue: 1",cls:"dim"},
+      {text:"  Estimated start: ~2 minutes",cls:"dim"},
+      {text:"  Suite: API contract tests (47 cases)",cls:""},
+      {text:"  Targets: mock-server, staging-east",cls:""},
+      {text:"",cls:""},
+      {text:"  Pending dependencies:",cls:"dim"},
+      {text:"    - coder-a: auth-slice build (in progress)",cls:"dim"},
+      {text:"    - mock-server: healthy (last check 30s ago)",cls:"dim"}
+    ],
+    "logs": [
+      {prompt:"knot logs",cmd:" --stream --filter=deploy,queue"},
+      {text:"[logs] Streaming edge logs...",cls:"info"},
+      {text:"  12:01:44  deploy  us-east  Build #847 passed",cls:"success"},
+      {text:"  12:01:50  deploy  us-east  Canary promoted (2/4 pods)",cls:"success"},
+      {text:"  12:02:12  queue   ingest   3 jobs completed, 0 failed",cls:""},
+      {text:"  12:02:30  deploy  eu-west  Build #847 passed",cls:"success"},
+      {text:"  12:03:01  queue   ingest   Idle. Next batch in 45s",cls:"dim"},
+      {text:"  12:03:44  deploy  us-east  Canary promoted (4/4 pods)",cls:"success"},
+      {text:"",cls:""},
+      {text:"  No errors in last 12 minutes.",cls:"success"},
+      {text:"  [tailing...]",cls:"dim"}
+    ],
+    "research": [
+      {prompt:"knot research",cmd:" --topic=terminal-ux"},
+      {text:"[research] Collecting terminal UX notes...",cls:"info"},
+      {text:"  - Surveyed 12 terminal multiplexer keybinding sets",cls:""},
+      {text:"  - Found 3 direct conflicts with tmux defaults:",cls:""},
+      {text:"    ERR  Ctrl+B collides with tmux prefix",cls:"err"},
+      {text:"    ERR  Ctrl+D collides with shell EOF",cls:"err"},
+      {text:"    WARN Ctrl+W collides with readline word-delete",cls:"warn"},
+      {text:"",cls:""},
+      {text:"  Recommendations written to docs/keybinding-audit.md",cls:""},
+      {text:"",cls:""},
+      {text:"  FATAL  Process exited with code 1",cls:"err"},
+      {text:"  Reason: research source API returned 503 (retry limit hit)",cls:"err"}
+    ]
+  },
+  "rune": {
+    "planner": [
+      {prompt:"knot plan",cmd:" --workspace=rune-ui"},
+      {text:"[planner] Task decomposition for rune-ui...",cls:"info"},
+      {text:"  Route-level splits:",cls:""},
+      {text:"    /dashboard  -> ui (hero-shell)",cls:""},
+      {text:"    /settings   -> ui (card-stack)",cls:""},
+      {text:"    /preview    -> review (contrast pass)",cls:""},
+      {text:"",cls:""},
+      {text:"  Animation pass queued after layout merge",cls:""},
+      {text:"  Accessibility audit: WCAG 2.1 AA target",cls:""},
+      {text:"  [stream] Planning active...",cls:"dim"}
+    ],
+    "ui": [
+      {prompt:"git checkout",cmd:" feat/hero-shell"},
+      {text:"Switched to branch 'feat/hero-shell'",cls:"success"},
+      {prompt:"knot dev",cmd:" --hot"},
+      {text:"[ui] Building hero shell with card navigation...",cls:"info"},
+      {text:"  - Card stack mount animation: 300ms spring",cls:"success"},
+      {text:"  - Navigation transitions wired (push/pop/replace)",cls:"success"},
+      {text:"  - Gesture handlers: swipe-to-dismiss active",cls:"success"},
+      {text:"  WARN  No reduced-motion fallback detected",cls:"warn"},
+      {text:"  - Lighthouse motion audit pending",cls:""},
+      {text:"  [HMR] Watching 34 modules...",cls:"dim"}
+    ],
+    "review": [
+      {prompt:"knot review",cmd:" --scope=a11y"},
+      {text:"[review] Accessibility pass...",cls:"info"},
+      {text:"  Contrast check: 14/16 elements pass AA",cls:"success"},
+      {text:"  WARN  2 elements below 4.5:1 ratio",cls:"warn"},
+      {text:"    - .nav-label on dark surface (3.8:1)",cls:"warn"},
+      {text:"    - .tooltip-text on overlay (4.1:1)",cls:"warn"},
+      {text:"",cls:""},
+      {text:"  Keyboard flow: command palette traps focus",cls:"err"},
+      {text:"  >> Awaiting fix confirmation for Escape handler",cls:"warn"},
+      {prompt:"_",cmd:"",cursor:true}
+    ],
+    "tests": [
+      {prompt:"knot test",cmd:" --suite=nav,snapshot"},
+      {text:"[tests] Queued for next available slot...",cls:"dim"},
+      {text:"  Snapshot suite: 23 components",cls:""},
+      {text:"  Navigation suite: 8 route transitions",cls:""},
+      {text:"  Waiting on hero-shell build...",cls:"dim"}
+    ],
+    "notes": [
+      {prompt:"knot notes",cmd:" --sync"},
+      {text:"[notes] Design decision log synced.",cls:"success"},
+      {text:"  - Card stack chosen over tab navigation (decision #14)",cls:""},
+      {text:"  - Spring animations preferred over ease curves",cls:""},
+      {text:"  - Copy: 'Workspace' replaces 'Project' globally",cls:""},
+      {text:"  3 entries synced to docs/notes.",cls:"dim"}
+    ]
+  },
+  "moss": {
+    "ingest": [
+      {prompt:"knot ingest",cmd:" --replay --source=archive"},
+      {text:"[ingest] Backfill worker started...",cls:"info"},
+      {text:"  Source: archive/2026-03-10_full.parquet",cls:""},
+      {text:"  Total rows: 14,221",cls:""},
+      {text:"  Progress: ████████████░░░░░░░░ 8,412 / 14,221 (59.2%)",cls:""},
+      {text:"  Throughput: 1,247 rows/min (stable)",cls:"success"},
+      {text:"  Errors: 0 | Skipped: 3 (schema mismatch)",cls:""},
+      {text:"  ETA: ~4m 40s",cls:"dim"},
+      {text:"",cls:""},
+      {text:"  [stream] Replay active...",cls:"dim"}
+    ],
+    "db": [
+      {prompt:"knot db",cmd:" analyze --index-pressure"},
+      {text:"[db] Index pressure analysis...",cls:"info"},
+      {text:"  Table: workspaces (1.2M rows)",cls:""},
+      {text:"    idx_workspace_id     : 12% fragmented",cls:""},
+      {text:"    idx_created_at       : 34% fragmented",cls:"warn"},
+      {text:"    idx_owner_compound   : 51% fragmented",cls:"err"},
+      {text:"",cls:""},
+      {text:"  WARN  Cardinality snapshot required before reindex",cls:"warn"},
+      {text:"  >> Awaiting operator approval for REINDEX CONCURRENTLY",cls:"warn"},
+      {prompt:"_",cmd:"",cursor:true}
+    ],
+    "etl": [
+      {prompt:"knot etl",cmd:" --resume"},
+      {text:"[etl] Schema version check...",cls:"info"},
+      {text:"  Current: v14.2.0",cls:""},
+      {text:"  Required: v14.3.0",cls:""},
+      {text:"  WARN  Version mismatch. Queue paused.",cls:"warn"},
+      {text:"  Waiting for migration: alter_workspace_meta",cls:"dim"},
+      {text:"  Position in queue: 2",cls:"dim"}
+    ],
+    "logs": [
+      {prompt:"knot logs",cmd:" --metric=p95 --window=15m"},
+      {text:"[logs] Latency monitor (P95, 15m window)...",cls:"info"},
+      {text:"  11:00  ██████████████████░░  247ms",cls:""},
+      {text:"  11:05  ████████████████████  312ms  (job burst)",cls:"warn"},
+      {text:"  11:10  ███████████████░░░░░  198ms  (normalizing)",cls:""},
+      {text:"  11:15  ██████████░░░░░░░░░░  142ms",cls:"success"},
+      {text:"",cls:""},
+      {text:"  Trend: improving. Burst impact fading.",cls:"success"},
+      {text:"  [tailing...]",cls:"dim"}
+    ],
+    "audit": [
+      {prompt:"knot audit",cmd:" --compare=checkpoint-0310"},
+      {text:"[audit] Comparing against checkpoint 2026-03-10...",cls:"info"},
+      {text:"  Scanned: 14,221 rows",cls:""},
+      {text:"  Clean:   14,218 (99.98%)",cls:"success"},
+      {text:"  Suspect: 3 rows flagged",cls:""},
+      {text:"    Row #4,821 : amount_cents null (was 1200)",cls:"err"},
+      {text:"    Row #9,004 : timestamp drift > 5s",cls:"warn"},
+      {text:"    Row #11,337: duplicate key (idempotency miss)",cls:"err"},
+      {text:"",cls:""},
+      {text:"  3 rows promoted to manual review queue.",cls:"warn"},
+      {text:"  [stream] Audit pass active...",cls:"dim"}
+    ]
+  }
+};
+
+// ── State ──
+let currentWs = 0;
+let currentAgent = 0;
+let viewMode = "focus"; // focus | compare | mission
+let compareRight = 1;
+
+// ── Color helpers ──
+function statusColor(s){
+  return {running:"var(--blue)","needs-input":"var(--pink)",idle:"var(--lime)",queued:"var(--grey)",error:"var(--err)"}[s]||"var(--grey)";
+}
+function statusHex(s){
+  return {running:"#00d4ff","needs-input":"#ff0080",idle:"#39ff14",queued:"#555",error:"#ff2d55"}[s]||"#555";
+}
+function glowClass(s){
+  return {running:"glow-blue","needs-input":"glow-pink",idle:"glow-lime",error:"glow-err"}[s]||"";
+}
+function badgeStyle(s){
+  const c = statusHex(s);
+  return `color:${c};background:${c}18;border:1px solid ${c}33`;
+}
+function statusLabel(s){
+  return {running:"RUNNING","needs-input":"NEEDS INPUT",idle:"IDLE",queued:"QUEUED",error:"ERROR"}[s]||s.toUpperCase();
+}
+
+// ── Render workspace tabs ──
+function renderTabs(){
+  const el = document.getElementById("wsTabs");
+  el.innerHTML = workspaces.map((ws,i)=>
+    `<div class="ws-tab${i===currentWs?" active":""}" data-ws="${i}">${ws.name.toUpperCase()}</div>`
+  ).join("");
+  el.querySelectorAll(".ws-tab").forEach(tab=>{
+    tab.addEventListener("click",()=>{
+      currentWs = parseInt(tab.dataset.ws);
+      currentAgent = 0;
+      render();
+    });
+  });
+}
+
+// ── Render sidebar ──
+function renderSidebar(){
+  const ws = workspaces[currentWs];
+  const list = document.getElementById("agentList");
+  list.innerHTML = ws.agents.map((a,i)=>{
+    const col = statusColor(a.status);
+    const dotCls = a.status==="running"?"running":a.status==="needs-input"?"needs-input":"";
+    return `<div class="agent-row${i===currentAgent?" active":""}" data-idx="${i}">
+      <div class="agent-edge" style="background:${col}"></div>
+      <div class="agent-dot ${dotCls}" style="background:${col}"></div>
+      <div class="agent-name">${a.role}</div>
+    </div>`;
+  }).join("");
+  list.querySelectorAll(".agent-row").forEach(row=>{
+    row.addEventListener("click",()=>{
+      currentAgent = parseInt(row.dataset.idx);
+      render();
+    });
+  });
+
+  // Signals
+  const counts = {running:0,"needs-input":0,queued:0,idle:0,error:0};
+  ws.agents.forEach(a=>counts[a.status]=(counts[a.status]||0)+1);
+  const sig = document.getElementById("signals");
+  const labels = {running:"RUN","needs-input":"WAIT",queued:"QUEUE",idle:"IDLE",error:"ERR"};
+  sig.innerHTML = `<div class="sidebar-label">SIGNALS</div>` +
+    Object.entries(counts).filter(([,v])=>v>0).map(([k,v])=>
+      `<div class="signal-row">
+        <div class="signal-dot${k==="running"?" running":""}" style="background:${statusHex(k)}"></div>
+        <span class="signal-count">${v}</span> ${labels[k]}
+      </div>`
+    ).join("");
+
+  // Meta
+  const meta = document.getElementById("wsMeta");
+  meta.innerHTML = `
+    <div class="ws-meta-line">repo <span>${ws.repo}</span></div>
+    <div class="ws-meta-line">tmpl <span>${ws.template}</span></div>
+    <div class="ws-meta-line">spike <span>${ws.spike}</span></div>
+  `;
+}
+
+// ── Render terminal content ──
+function renderTermContent(wsId, role){
+  const outputs = terminalOutputs[wsId]?.[role];
+  if(!outputs) return `<div class="term-line"><span class="dim">[no output]</span></div>`;
+  return outputs.map(line=>{
+    if(line.prompt !== undefined){
+      const cur = line.cursor ? '<span class="term-cursor"></span>' : '';
+      return `<div class="term-line"><span class="prompt">${escHtml(line.prompt)}</span><span class="cmd">${escHtml(line.cmd)}</span>${cur}</div>`;
+    }
+    const cls = line.cls || "";
+    return `<div class="term-line"><span class="${cls}">${escHtml(line.text)}</span></div>`;
+  }).join("");
+}
+function escHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+
+// ── Render focus terminal ──
+function renderFocusTerminal(){
+  const ws = workspaces[currentWs];
+  const a = ws.agents[currentAgent];
+  const wrap = document.getElementById("focusTerminal");
+  wrap.className = "terminal-wrap " + glowClass(a.status);
+  wrap.style.display = viewMode==="focus" ? "flex" : "none";
+
+  document.getElementById("focusRole").textContent = a.role.toUpperCase();
+  document.getElementById("focusBranch").textContent = a.branch;
+  const badge = document.getElementById("focusBadge");
+  badge.textContent = statusLabel(a.status);
+  badge.style.cssText = badgeStyle(a.status);
+  document.getElementById("focusBody").innerHTML = renderTermContent(ws.id, a.role);
+}
+
+// ── Render compare mode ──
+function renderCompare(){
+  const container = document.getElementById("compareContainer");
+  container.classList.toggle("visible", viewMode==="compare");
+  if(viewMode!=="compare") return;
+
+  const ws = workspaces[currentWs];
+  const leftA = ws.agents[currentAgent];
+  const rIdx = compareRight < ws.agents.length ? compareRight : (currentAgent+1)%ws.agents.length;
+  if(rIdx === currentAgent) compareRight = (currentAgent+1)%ws.agents.length;
+  const rightA = ws.agents[rIdx];
+
+  document.getElementById("cmpLeftRole").textContent = leftA.role.toUpperCase();
+  document.getElementById("cmpLeftBranch").textContent = leftA.branch;
+  document.getElementById("cmpLeftBody").innerHTML = renderTermContent(ws.id, leftA.role);
+  document.getElementById("compareLeft").className = "terminal-wrap " + glowClass(leftA.status);
+
+  document.getElementById("cmpRightRole").textContent = rightA.role.toUpperCase();
+  document.getElementById("cmpRightBranch").textContent = rightA.branch;
+  document.getElementById("cmpRightBody").innerHTML = renderTermContent(ws.id, rightA.role);
+  document.getElementById("compareRight").className = "terminal-wrap " + glowClass(rightA.status);
+}
+
+// ── Render mission control ──
+function renderMission(){
+  const grid = document.getElementById("missionGrid");
+  grid.classList.toggle("visible", viewMode==="mission");
+  if(viewMode!=="mission") return;
+
+  const ws = workspaces[currentWs];
+  grid.innerHTML = ws.agents.map((a,i)=>{
+    const gc = glowClass(a.status);
+    const hoverGlow = a.status==="running"?"var(--blue-glow)":a.status==="needs-input"?"var(--pink-glow)":a.status==="idle"?"var(--lime-glow)":a.status==="error"?"var(--err-glow)":"none";
+    return `<div class="mission-card ${gc}" data-idx="${i}"
+      onmouseenter="this.style.boxShadow='${hoverGlow}'"
+      onmouseleave="this.style.boxShadow=''">
+      <div class="terminal-header">
+        <div class="terminal-title">
+          <span class="role-name">${a.role.toUpperCase()}</span>
+          <span class="separator">&#8212;</span>
+          <span class="branch">${a.branch}</span>
+        </div>
+        <div class="terminal-status-badge" style="${badgeStyle(a.status)}">${statusLabel(a.status)}</div>
+      </div>
+      <div class="terminal-body scanlines">${renderTermContent(ws.id, a.role)}</div>
+    </div>`;
+  }).join("");
+
+  grid.querySelectorAll(".mission-card").forEach(card=>{
+    card.addEventListener("click",()=>{
+      currentAgent = parseInt(card.dataset.idx);
+      setMode("focus");
+    });
+  });
+}
+
+// ── Render feed ──
+function renderFeed(){
+  const ws = workspaces[currentWs];
+  const list = document.getElementById("feedList");
+  list.innerHTML = ws.feed.map(f=>{
+    const agent = ws.agents.find(a=>a.role===f.agent);
+    const col = agent ? statusHex(agent.status) : "#666";
+    return `<div class="feed-entry">
+      <span class="marker">&#9656;</span>
+      <span class="ftime">${f.time}</span>
+      <span class="fagent" style="color:${col}">${f.agent}:</span>
+      <span class="ftext">${escHtml(f.text)}</span>
+    </div>`;
+  }).join("");
+}
+
+// ── Mode switching ──
+function setMode(mode){
+  viewMode = mode;
+  document.querySelectorAll(".mode-btn").forEach(b=>{
+    b.classList.toggle("active", b.dataset.mode===mode);
+  });
+  render();
+}
+
+document.querySelectorAll(".mode-btn").forEach(btn=>{
+  btn.addEventListener("click",()=>setMode(btn.dataset.mode));
+});
+
+// ── Keyboard ──
+document.addEventListener("keydown", e=>{
+  if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA") return;
+  const ws = workspaces[currentWs];
+  if(e.key==="f"||e.key==="F") { setMode("focus"); e.preventDefault(); }
+  else if(e.key==="c"||e.key==="C") { setMode("compare"); e.preventDefault(); }
+  else if(e.key==="m"||e.key==="M") { setMode("mission"); e.preventDefault(); }
+  else if(e.key==="ArrowDown"||e.key==="j"){
+    currentAgent = (currentAgent+1) % ws.agents.length;
+    render(); e.preventDefault();
+  }
+  else if(e.key==="ArrowUp"||e.key==="k"){
+    currentAgent = (currentAgent-1+ws.agents.length) % ws.agents.length;
+    render(); e.preventDefault();
+  }
+  else if(e.key>="1"&&e.key<="9"){
+    const idx = parseInt(e.key)-1;
+    if(idx < ws.agents.length){ currentAgent = idx; render(); }
+    e.preventDefault();
+  }
+});
+
+// ── Heartbeat: cycle through agents with running status ──
+let heartbeatIdx = 0;
+setInterval(()=>{
+  const ws = workspaces[currentWs];
+  const running = ws.agents.map((a,i)=>({...a,i})).filter(a=>a.status==="running");
+  if(running.length === 0) return;
+  heartbeatIdx = (heartbeatIdx+1) % running.length;
+  // Subtle: update the active agent edge brightness
+  const rows = document.querySelectorAll(".agent-row");
+  rows.forEach(r=>{
+    const idx = parseInt(r.dataset.idx);
+    const a = ws.agents[idx];
+    const edge = r.querySelector(".agent-edge");
+    if(a.status==="running" && running[heartbeatIdx].i===idx){
+      edge.style.opacity = "1";
+      edge.style.width = "3px";
+    } else {
+      edge.style.opacity = "";
+      edge.style.width = "";
+    }
+  });
+}, 7000);
+
+// ── Full render ──
+function render(){
+  renderTabs();
+  renderSidebar();
+  renderFocusTerminal();
+  renderCompare();
+  renderMission();
+  renderFeed();
+}
+
+render();
+</script>
+</body>
+</html>

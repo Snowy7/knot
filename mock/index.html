@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>knot</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <div class="grain"></div>
+    <div class="app-shell">
+      <aside class="project-dock">
+        <div class="brand-block">
+          <div class="brand-mark">K</div>
+          <div>
+            <p class="eyebrow">Agent Workspaces</p>
+            <h1>knot</h1>
+          </div>
+        </div>
+
+        <div class="dock-group">
+          <div class="dock-label">Projects</div>
+          <div id="project-list" class="project-list"></div>
+        </div>
+
+        <div class="dock-group">
+          <div class="dock-label">Signals</div>
+          <div class="signal-card">
+            <span>Needs input</span>
+            <strong id="needs-input-count">0</strong>
+          </div>
+          <div class="signal-card">
+            <span>Running</span>
+            <strong id="running-count">0</strong>
+          </div>
+          <div class="signal-card">
+            <span>Queued</span>
+            <strong id="queued-count">0</strong>
+          </div>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <header class="workspace-topbar">
+          <div>
+            <p class="eyebrow">Focused terminal, not equal splits</p>
+            <h2 id="project-title">Project</h2>
+          </div>
+          <div class="topbar-actions">
+            <button class="mode-toggle active" data-view="focus">Focus</button>
+            <button class="mode-toggle" data-view="compare">Compare</button>
+            <button class="mode-toggle" data-view="overview">Mission</button>
+          </div>
+        </header>
+
+        <section class="summary-strip">
+          <div class="summary-card">
+            <span>Workspace template</span>
+            <strong id="template-name">-</strong>
+          </div>
+          <div class="summary-card">
+            <span>Open terminals</span>
+            <strong id="terminal-count">-</strong>
+          </div>
+          <div class="summary-card">
+            <span>Last attention spike</span>
+            <strong id="attention-spike">-</strong>
+          </div>
+        </section>
+
+        <section class="workspace-grid">
+          <section class="terminal-stage">
+            <div class="stage-header">
+              <div>
+                <p class="stage-kicker" id="focused-role">Focused role</p>
+                <h3 id="focused-name">Terminal</h3>
+              </div>
+              <div class="stage-metrics">
+                <span id="focused-status" class="status-pill">running</span>
+                <span id="focused-branch">branch</span>
+              </div>
+            </div>
+
+            <div id="focus-view" class="stage-view stage-view-active">
+              <div class="terminal-frame">
+                <div class="terminal-toolbar">
+                  <span class="dot red"></span>
+                  <span class="dot amber"></span>
+                  <span class="dot green"></span>
+                  <span id="focused-path" class="terminal-path"></span>
+                </div>
+                <pre id="terminal-output" class="terminal-output"></pre>
+              </div>
+            </div>
+
+            <div id="compare-view" class="stage-view compare-layout">
+              <div class="compare-card">
+                <div class="compare-head">
+                  <span>Primary</span>
+                  <strong id="compare-primary-name"></strong>
+                </div>
+                <pre id="compare-primary-output" class="compare-output"></pre>
+              </div>
+              <div class="compare-card">
+                <div class="compare-head">
+                  <span>Secondary</span>
+                  <strong id="compare-secondary-name"></strong>
+                </div>
+                <pre id="compare-secondary-output" class="compare-output"></pre>
+              </div>
+            </div>
+
+            <div id="overview-view" class="stage-view overview-grid"></div>
+          </section>
+
+          <aside class="agent-strip">
+            <div class="strip-header">
+              <div>
+                <p class="eyebrow">Live agents</p>
+                <h3>Attention rail</h3>
+              </div>
+              <span class="hint">Click to promote</span>
+            </div>
+            <div id="agent-list" class="agent-list"></div>
+          </aside>
+        </section>
+
+        <section class="feed-panel">
+          <div class="feed-head">
+            <div>
+              <p class="eyebrow">Unified awareness</p>
+              <h3>Event stream</h3>
+            </div>
+            <button id="cycle-button" class="ghost-button">Cycle attention</button>
+          </div>
+          <div id="event-feed" class="event-feed"></div>
+        </section>
+      </main>
+    </div>
+
+    <script src="./app.js"></script>
+  </body>
+  </html>

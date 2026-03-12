@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>knot</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg: #1a1b26;
+  --fg: #a9b1d6;
+  --bright: #c0caf5;
+  --muted: #565f89;
+  --comment: #545c7e;
+  --running: #9ece6a;
+  --input: #e0af68;
+  --queued: #565f89;
+  --idle: #545c7e;
+  --error: #f7768e;
+  --border: #33394d;
+  --selection: rgba(86, 95, 137, 0.25);
+}
+
+html, body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Berkeley Mono", "SF Mono", "JetBrains Mono", "Cascadia Code", monospace;
+  font-size: 13px;
+  line-height: 1.55;
+  height: 100%;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: 12px 16px;
+  max-width: 960px;
+  margin: 0 auto;
+  overflow: hidden;
+}
+
+.header-line {
+  display: flex;
+  justify-content: space-between;
+  color: var(--bright);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.heavy-rule {
+  color: var(--muted);
+  overflow: hidden;
+  white-space: nowrap;
+  flex-shrink: 0;
+  margin: 2px 0;
+  user-select: none;
+}
+
+.info-line {
+  color: var(--fg);
+  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.info-line .label { color: var(--muted); }
+.info-line .value { color: var(--bright); }
+
+.shortcuts { flex-shrink: 0; margin-top: 1px; color: var(--muted); white-space: nowrap; }
+.shortcuts .key { color: var(--input); }
+
+.workspace-tabs { flex-shrink: 0; margin-top: 2px; color: var(--muted); white-space: nowrap; }
+.workspace-tabs .active-tab { color: var(--bright); }
+.workspace-tabs .tab-key { color: var(--input); }
+
+.section {
+  flex-shrink: 0;
+  margin-top: 4px;
+}
+
+.section-border { color: var(--border); user-select: none; }
+.section-label { color: var(--muted); }
+
+.agent-row {
+  display: flex;
+  white-space: nowrap;
+  overflow: hidden;
+  padding: 0 0 0 0;
+  cursor: pointer;
+}
+
+.agent-row:hover { background: var(--selection); }
+.agent-row.selected { background: var(--selection); }
+.agent-row .pipe { color: var(--border); user-select: none; min-width: 2ch; }
+
+.agent-row .status-icon { min-width: 2ch; text-align: center; }
+.agent-row .status-text { min-width: 8ch; }
+.agent-row .role { color: var(--bright); min-width: 12ch; }
+.agent-row .branch { color: var(--muted); min-width: 28ch; }
+.agent-row .summary { color: var(--comment); overflow: hidden; text-overflow: ellipsis; }
+
+.status-running .status-icon, .status-running .status-text { color: var(--running); }
+.status-needs-input .status-icon, .status-needs-input .status-text { color: var(--input); }
+.status-queued .status-icon, .status-queued .status-text { color: var(--queued); }
+.status-idle .status-icon, .status-idle .status-text { color: var(--idle); }
+.status-error .status-icon, .status-error .status-text { color: var(--error); }
+
+.agent-header-row {
+  display: flex;
+  white-space: nowrap;
+  color: var(--comment);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.agent-header-row .pipe { color: var(--border); user-select: none; min-width: 2ch; }
+.agent-header-row span:not(.pipe) { display: inline-block; }
+
+.terminal-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  margin-top: 4px;
+  display: flex;
+  flex-direction: column;
+}
+
+.terminal-content {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.terminal-content::-webkit-scrollbar { width: 4px; }
+.terminal-content::-webkit-scrollbar-track { background: transparent; }
+.terminal-content::-webkit-scrollbar-thumb { background: var(--border); }
+
+.terminal-line { white-space: pre-wrap; word-break: break-all; }
+.terminal-line .prompt-char { color: var(--running); }
+.terminal-line .path { color: var(--bright); }
+.terminal-line .context-tag { color: var(--input); }
+.terminal-line .status-tag { color: var(--input); }
+.terminal-line .ts { color: var(--muted); min-width: 6ch; display: inline-block; }
+.terminal-line .ok { color: var(--running); }
+.terminal-line .warn { color: var(--input); }
+.terminal-line .err { color: var(--error); }
+
+.compare-container {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 0;
+  margin-top: 4px;
+  overflow: hidden;
+}
+
+.compare-pane {
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.compare-pane .terminal-content { flex: 1; overflow-y: auto; }
+
+.compare-divider {
+  width: 1px;
+  background: var(--border);
+  flex-shrink: 0;
+  margin: 0 4px;
+}
+
+.mission-table {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.mission-row {
+  display: flex;
+  white-space: nowrap;
+  overflow: hidden;
+  padding: 1px 0;
+}
+
+.mission-row .pipe { color: var(--border); user-select: none; min-width: 2ch; }
+.mission-row .role { color: var(--bright); min-width: 12ch; }
+.mission-row .status-text { min-width: 8ch; }
+.mission-row .last-line { color: var(--comment); overflow: hidden; text-overflow: ellipsis; }
+
+.feed-section {
+  flex-shrink: 0;
+  margin-top: 4px;
+  max-height: 7.5em;
+  overflow: hidden;
+}
+
+.feed-row {
+  display: flex;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.feed-row .pipe { color: var(--border); user-select: none; min-width: 2ch; }
+.feed-row .time { color: var(--muted); min-width: 7ch; }
+.feed-row .agent { color: var(--bright); min-width: 12ch; }
+.feed-row .text { color: var(--fg); overflow: hidden; text-overflow: ellipsis; }
+
+.prompt-line {
+  flex-shrink: 0;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  color: var(--fg);
+}
+
+.prompt-line .prompt-gt { color: var(--running); margin-right: 1ch; }
+
+.prompt-input {
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--bright);
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  flex: 1;
+  caret-color: var(--bright);
+}
+
+.prompt-input::placeholder { color: var(--comment); }
+
+.cursor-blink {
+  display: inline-block;
+  width: 7.8px;
+  height: 15px;
+  background: var(--bright);
+  animation: blink 1s step-end infinite;
+  vertical-align: middle;
+  margin-left: -1px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.help-bar {
+  flex-shrink: 0;
+  display: flex;
+  gap: 2ch;
+  color: var(--comment);
+  white-space: nowrap;
+  margin-top: 2px;
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.help-bar .key { color: var(--muted); }
+
+.command-overlay {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #16161e;
+  border-top: 1px solid var(--border);
+  padding: 8px 16px;
+  display: none;
+  z-index: 100;
+}
+
+.command-overlay.open { display: flex; align-items: center; }
+.command-overlay .prefix { color: var(--input); margin-right: 1ch; }
+
+.command-input {
+  background: none;
+  border: none;
+  outline: none;
+  color: var(--bright);
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  flex: 1;
+  caret-color: var(--bright);
+}
+
+.hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div id="commandOverlay" class="command-overlay">
+  <span class="prefix" id="commandPrefix">:</span>
+  <input type="text" class="command-input" id="commandInput" spellcheck="false" autocomplete="off" />
+</div>
+
+<script>
+const workspaces = [
+  {
+    id: "atlas", name: "Atlas", repo: "~/work/atlas-core", template: "Full swarm", spike: "2m ago",
+    agents: [
+      { role: "planner", summary: "Plan API split, queue schema migration, stage agent handoffs.", status: "needs-input", branch: "feat/workspace-stream" },
+      { role: "coder-a", summary: "Refactor server bootstrap and keep auth adapter isolated.", status: "running", branch: "feat/auth-slice" },
+      { role: "coder-b", summary: "Wiring compare overlay and preserving active focus path.", status: "running", branch: "feat/focus-rail" },
+      { role: "tests", summary: "Replay API contract suite against mock and staging outputs.", status: "queued", branch: "test/contracts" },
+      { role: "logs", summary: "Streaming edge logs, deploy hooks, and queue failures.", status: "idle", branch: "ops/live" },
+      { role: "research", summary: "Collect terminal UX notes and keyboard priority conflicts.", status: "error", branch: "docs/research" }
+    ],
+    feed: [
+      { agent: "coder-b", text: "Compare mode now mirrors primary focus and secondary selection.", time: "11:02" },
+      { agent: "planner", text: "Waiting on user input for repo grouping strategy.", time: "10:59" },
+      { agent: "logs", text: "No new deploy errors in the last 12 minutes.", time: "10:54" },
+      { agent: "research", text: "Found collision between workspace switch and tmux defaults.", time: "10:48" }
+    ]
+  },
+  {
+    id: "rune", name: "Rune", repo: "~/work/rune-ui", template: "Frontend train", spike: "7m ago",
+    agents: [
+      { role: "planner", summary: "Split tasks by route, animation pass, and accessibility audit.", status: "running", branch: "feat/plan-pass" },
+      { role: "ui", summary: "Building motion-heavy shell with card stack navigation.", status: "running", branch: "feat/hero-shell" },
+      { role: "review", summary: "Checking contrast and keyboard flow in mission control.", status: "needs-input", branch: "chore/review" },
+      { role: "tests", summary: "Running snapshot and navigation test queue.", status: "queued", branch: "test/nav" },
+      { role: "notes", summary: "Summarizing design decisions and copy changes.", status: "idle", branch: "docs/notes" }
+    ],
+    feed: [
+      { agent: "ui", text: "Main canvas animation landed; waiting on reduced-motion fallback.", time: "11:11" },
+      { agent: "review", text: "Keyboard trap found in command palette overlay.", time: "11:06" },
+      { agent: "planner", text: "Reordered workspaces to prioritize shipping path.", time: "11:01" }
+    ]
+  },
+  {
+    id: "moss", name: "Moss", repo: "~/work/moss-data", template: "Ops watch", spike: "now",
+    agents: [
+      { role: "ingest", summary: "Backfill worker is replaying 14k rows from archive.", status: "running", branch: "ops/backfill" },
+      { role: "db", summary: "Examining index pressure after wide workspace restore.", status: "needs-input", branch: "fix/index-plan" },
+      { role: "etl", summary: "Queue paused pending schema version match.", status: "queued", branch: "etl/schema" },
+      { role: "logs", summary: "P95 latency dipped after job burst normalized.", status: "idle", branch: "ops/latency" },
+      { role: "audit", summary: "Comparing failed rows against last clean checkpoint.", status: "running", branch: "ops/audit" }
+    ],
+    feed: [
+      { agent: "db", text: "Index planner is blocked on cardinality snapshot.", time: "11:16" },
+      { agent: "ingest", text: "Backfill throughput stable at 1.2k rows/min.", time: "11:14" },
+      { agent: "audit", text: "Three suspect rows promoted for manual review.", time: "11:08" }
+    ]
+  }
+];
+
+const terminalOutputs = {
+  "atlas": {
+    "planner": [
+      "$ pwd",
+      "~/workspace/feat/workspace-stream",
+      "$ agent run --role planner",
+      "",
+      "[context] Plan API split, queue schema migration...",
+      "[status] needs-input",
+      "",
+      "11:02 syncing project state",
+      "11:02 replaying recent workspace events",
+      "11:02 analyzing dependency graph for schema split",
+      "11:02 3 migration files staged, 1 pending review",
+      "11:02 ready"
+    ],
+    "coder-a": [
+      "$ cd feat/auth-slice && agent run --role coder",
+      "",
+      "[context] Refactor server bootstrap, isolate auth adapter",
+      "[status] running",
+      "",
+      "10:44 reading current auth module structure",
+      "10:44 extracting adapter interface from monolith",
+      "10:45 created src/auth/adapter.ts (47 lines)",
+      "10:46 updating imports across 12 files",
+      "10:47 auth adapter now isolated behind interface",
+      "10:48 running type check... clean",
+      "10:49 server bootstrap refactored to lazy-load auth",
+      "10:50 all 34 tests passing"
+    ],
+    "coder-b": [
+      "$ agent run --role coder --task focus-rail",
+      "",
+      "[context] Wiring compare overlay, preserving active focus",
+      "[status] running",
+      "",
+      "10:51 reading current focus rail implementation",
+      "10:52 compare overlay needs split-pane layout",
+      "10:53 wiring left pane to primary selection",
+      "10:54 wiring right pane to secondary selection",
+      "10:56 focus path preserved across pane switches",
+      "10:58 overlay toggle bound to [c] key",
+      "11:00 testing edge case: rapid workspace switch",
+      "11:02 compare mode now mirrors primary focus"
+    ],
+    "tests": [
+      "$ agent run --role tests --suite contracts",
+      "",
+      "[context] Replay API contract suite",
+      "[status] queued",
+      "",
+      "10:40 loading contract definitions from test/contracts/",
+      "10:40 found 48 contract files, 212 assertions",
+      "10:40 waiting for coder-a to finish auth refactor",
+      "10:40 position in queue: 1"
+    ],
+    "logs": [
+      "$ agent run --role logs --watch",
+      "",
+      "[context] Streaming edge logs and deploy hooks",
+      "[status] idle",
+      "",
+      "10:30 connected to log stream (us-east-1)",
+      "10:30 filtering: severity >= WARN",
+      "10:42 deploy hook fired: atlas-core@0.4.12",
+      "10:42 deploy completed, 0 errors",
+      "10:54 no new deploy errors in the last 12 min",
+      "10:54 stream idle, watching..."
+    ],
+    "research": [
+      "$ agent run --role research --topic terminal-ux",
+      "",
+      "[context] Collect terminal UX notes",
+      "[status] error",
+      "",
+      "10:30 scanning docs/research/ for prior art",
+      "10:31 found 6 reference implementations",
+      "10:35 analyzing keyboard shortcut conflicts",
+      "10:40 WARN: ctrl-b conflicts with tmux prefix",
+      "10:42 WARN: ctrl-w conflicts with browser close",
+      "10:45 ERROR: workspace switch keybind collides",
+      "10:48 error: unresolved conflict, halting"
+    ]
+  },
+  "rune": {
+    "planner": [
+      "$ agent run --role planner --scope routes",
+      "",
+      "[context] Split tasks by route, animation, a11y",
+      "[status] running",
+      "",
+      "11:00 scanning route tree for decomposition",
+      "11:00 found 8 routes, 3 need animation pass",
+      "11:01 prioritizing /dashboard and /settings",
+      "11:01 a11y audit queued after animation pass",
+      "11:01 task graph updated"
+    ],
+    "ui": [
+      "$ agent run --role ui --task hero-shell",
+      "",
+      "[context] Building motion-heavy shell",
+      "[status] running",
+      "",
+      "10:50 scaffolding card stack component",
+      "10:52 spring animation config: stiffness=120 damping=14",
+      "10:55 card stack navigation wired to gesture handler",
+      "10:58 hero section parallax at 0.6 ratio",
+      "11:02 main canvas animation landed",
+      "11:05 reduced-motion: need fallback",
+      "11:08 implementing prefers-reduced-motion query",
+      "11:11 waiting on fallback review"
+    ],
+    "review": [
+      "$ agent run --role review --focus a11y",
+      "",
+      "[context] Checking contrast and keyboard flow",
+      "[status] needs-input",
+      "",
+      "10:55 auditing mission control view",
+      "10:58 contrast ratio: 4.8:1 on muted text (pass AA)",
+      "11:00 keyboard flow: tab order follows visual order",
+      "11:03 WARN: command palette traps focus on open",
+      "11:06 needs input: confirm fix strategy for trap"
+    ],
+    "tests": [
+      "$ agent run --role tests --type snapshot",
+      "",
+      "[context] Snapshot and navigation tests",
+      "[status] queued",
+      "",
+      "10:50 loading snapshot baselines",
+      "10:50 14 snapshots loaded, 6 navigation flows",
+      "10:50 position in queue: 1"
+    ],
+    "notes": [
+      "$ agent run --role notes",
+      "",
+      "[context] Summarizing design decisions",
+      "[status] idle",
+      "",
+      "10:40 collected 3 design decision entries",
+      "10:40 copy changes: 2 pending review",
+      "10:40 idle, waiting for new decisions..."
+    ]
+  },
+  "moss": {
+    "ingest": [
+      "$ agent run --role ingest --backfill",
+      "",
+      "[context] Backfill worker replaying 14k rows",
+      "[status] running",
+      "",
+      "11:00 connecting to archive store",
+      "11:00 starting backfill from checkpoint 847291",
+      "11:02 processed 2,400 rows (batch 1)",
+      "11:05 processed 4,800 rows (batch 2)",
+      "11:08 processed 7,200 rows (batch 3)",
+      "11:10 processed 9,600 rows (batch 4)",
+      "11:12 processed 12,000 rows (batch 5)",
+      "11:14 throughput stable at 1.2k rows/min",
+      "11:14 estimated completion: 11:16"
+    ],
+    "db": [
+      "$ agent run --role db --analyze indexes",
+      "",
+      "[context] Index pressure after workspace restore",
+      "[status] needs-input",
+      "",
+      "11:00 running EXPLAIN on hot queries",
+      "11:02 index scan ratio: 0.73 (below 0.85 threshold)",
+      "11:04 candidate indexes: workspace_id, created_at",
+      "11:08 compound index would reduce scan by 40%",
+      "11:10 WARN: adding index during backfill risky",
+      "11:12 needs input: proceed with index or wait?"
+    ],
+    "etl": [
+      "$ agent run --role etl --pipeline main",
+      "",
+      "[context] Queue paused pending schema match",
+      "[status] queued",
+      "",
+      "11:00 schema version: local=42 remote=43",
+      "11:00 mismatch detected, pausing pipeline",
+      "11:00 waiting for schema migration to land"
+    ],
+    "logs": [
+      "$ agent run --role logs --metrics",
+      "",
+      "[context] P95 latency monitoring",
+      "[status] idle",
+      "",
+      "11:00 connected to metrics pipeline",
+      "11:02 p95 latency: 142ms (normal)",
+      "11:05 job burst: p95 spiked to 380ms",
+      "11:08 burst subsided, p95 back to 156ms",
+      "11:10 watching for next anomaly..."
+    ],
+    "audit": [
+      "$ agent run --role audit --compare checkpoints",
+      "",
+      "[context] Comparing failed rows against checkpoint",
+      "[status] running",
+      "",
+      "11:00 loading last clean checkpoint (cp-8471)",
+      "11:02 scanning for row discrepancies",
+      "11:04 found 7 suspect rows",
+      "11:06 4 rows matched after normalization",
+      "11:08 3 rows promoted for manual review",
+      "11:10 generating diff report"
+    ]
+  }
+};
+
+const heartbeatLines = {
+  "atlas": {
+    "planner": ["11:03 still waiting on user input...", "11:04 ping: workspace state unchanged", "11:05 idle heartbeat"],
+    "coder-a": ["10:51 optimizing import tree", "10:52 cleaning dead code paths", "10:53 lint pass clean"],
+    "coder-b": ["11:03 testing split-pane resize", "11:04 edge case handled", "11:05 pushing changes"],
+    "tests": ["10:41 still queued...", "10:42 checking dependencies", "10:43 ready when unblocked"],
+    "logs": ["10:55 heartbeat: stream alive", "10:56 no new events", "10:57 idle"],
+    "research": ["10:49 error state persists", "10:50 manual intervention needed", "10:51 retry blocked"]
+  },
+  "rune": {
+    "planner": ["11:02 re-evaluating task weights", "11:03 no changes to plan", "11:04 plan stable"],
+    "ui": ["11:12 still blocked on review", "11:13 tweaking spring damping", "11:14 idle"],
+    "review": ["11:07 awaiting user decision", "11:08 focus trap still open", "11:09 idle"],
+    "tests": ["10:51 queue unchanged", "10:52 baseline check passed", "10:53 waiting"],
+    "notes": ["10:41 no new entries", "10:42 idle", "10:43 watching for changes"]
+  },
+  "moss": {
+    "ingest": ["11:15 batch 6 in progress", "11:16 14,000 rows complete", "11:17 backfill finished"],
+    "db": ["11:13 still waiting on input", "11:14 index pressure holding", "11:15 no change"],
+    "etl": ["11:01 schema still mismatched", "11:02 checking remote version", "11:03 waiting"],
+    "logs": ["11:11 p95 at 148ms", "11:12 stable", "11:13 no anomalies"],
+    "audit": ["11:11 diff report generating", "11:12 report ready", "11:13 idle"]
+  }
+};
+
+let state = {
+  currentWorkspace: 0,
+  selectedAgent: 0,
+  viewMode: "focus",
+  compareAgent: 1,
+  commandOpen: false,
+  commandPrefix: ":",
+  liveOutputs: {},
+  heartbeatCounters: {}
+};
+
+for (const ws of workspaces) {
+  state.liveOutputs[ws.id] = {};
+  state.heartbeatCounters[ws.id] = {};
+  for (const agent of ws.agents) {
+    state.liveOutputs[ws.id][agent.role] = [...(terminalOutputs[ws.id]?.[agent.role] || [])];
+    state.heartbeatCounters[ws.id][agent.role] = 0;
+  }
+}
+
+function statusIcon(s) {
+  switch (s) {
+    case "needs-input": return "\u25cf";
+    case "running": return "\u25b6";
+    case "queued": return "\u25cb";
+    case "idle": return "\u00b7";
+    case "error": return "\u2715";
+    default: return " ";
+  }
+}
+
+function statusLabel(s) {
+  switch (s) {
+    case "needs-input": return "input";
+    case "running": return "run";
+    case "queued": return "queue";
+    case "idle": return "idle";
+    case "error": return "error";
+    default: return s;
+  }
+}
+
+function pad(str, len) {
+  str = String(str);
+  return str.length >= len ? str.substring(0, len) : str + " ".repeat(len - str.length);
+}
+
+function clock() {
+  const d = new Date();
+  return [d.getHours(), d.getMinutes(), d.getSeconds()].map(n => String(n).padStart(2, "0")).join(":");
+}
+
+function esc(s) {
+  const d = document.createElement("div");
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function ws() { return workspaces[state.currentWorkspace]; }
+function agents() { return ws().agents; }
+function selectedAgent() { return agents()[state.selectedAgent]; }
+
+function renderTerminalLine(line) {
+  if (line === "") return '<span class="terminal-line">&nbsp;</span>';
+  let html = esc(line);
+  html = html.replace(/^(\$\s)/, '<span class="prompt-char">$1</span>');
+  html = html.replace(/~\/[^\s]+/g, '<span class="path">$&</span>');
+  html = html.replace(/\[context\]/g, '<span class="context-tag">[context]</span>');
+  html = html.replace(/\[status\]/g, '<span class="status-tag">[status]</span>');
+  html = html.replace(/ERROR:/g, '<span class="err">ERROR:</span>');
+  html = html.replace(/WARN:/g, '<span class="warn">WARN:</span>');
+  html = html.replace(/^(\d{2}:\d{2})\s/, '<span class="ts">$1</span> ');
+  html = html.replace(/clean|pass|passing|completed|stable|finished|complete|landed/gi, '<span class="ok">$&</span>');
+  html = html.replace(/error|halting|blocked|risky|mismatch|conflict|collides|trap/gi, '<span class="err">$&</span>');
+  return '<span class="terminal-line">' + html + '</span>';
+}
+
+function renderAgentTerminal(agentRole, wsId) {
+  const lines = state.liveOutputs[wsId || ws().id][agentRole] || [];
+  return lines.map(renderTerminalLine).join("\n");
+}
+
+function render() {
+  const w = ws();
+  const ag = agents();
+  const sel = state.selectedAgent;
+  const curAgent = ag[sel];
+
+  let html = '';
+
+  html += '<div class="header-line"><span>knot v0.1.0</span><span>' + clock() + '</span></div>';
+  html += '<div class="heavy-rule">\u2501'.repeat(80) + '</div>';
+
+  html += '<div class="info-line">';
+  html += '<span class="label">workspace: </span><span class="value">' + esc(w.name.toLowerCase()) + '</span>';
+  html += ' <span class="label">(' + esc(w.repo) + ')</span>';
+  html += '&nbsp;&nbsp;&nbsp;&nbsp;';
+  const modes = [["f", "ocus", "focus"], ["c", "ompare", "compare"], ["m", "ission", "mission"]];
+  for (const [key, rest, mode] of modes) {
+    const active = state.viewMode === mode;
+    html += '<span style="color:' + (active ? "var(--bright)" : "var(--muted)") + '">[<span class="key" style="color:var(--input)">' + key + '</span>]' + rest + '</span> ';
+  }
+  html += '</div>';
+
+  html += '<div class="info-line"><span class="label">template: </span>' + esc(w.template) + '<span class="label"> | agents: </span>' + ag.length + '<span class="label"> | spike: </span>' + esc(w.spike) + '</div>';
+
+  html += '<div class="workspace-tabs">workspaces: ';
+  workspaces.forEach((ws2, i) => {
+    const active = i === state.currentWorkspace;
+    html += '<span class="' + (active ? "active-tab" : "") + '">[<span class="tab-key">' + (i + 1) + '</span>]' + esc(ws2.id) + '</span> ';
+  });
+  html += '</div>';
+
+  // Agent table
+  html += '<div class="section">';
+  html += '<div class="section-border">\u250c agents \u2500'.repeat(10) + '</div>';
+
+  html += '<div class="agent-header-row"><span class="pipe">\u2502 </span>';
+  html += '<span style="min-width:2ch"></span><span style="min-width:8ch;display:inline-block">STATUS</span>';
+  html += '<span style="min-width:12ch;display:inline-block">ROLE</span>';
+  html += '<span style="min-width:28ch;display:inline-block">BRANCH</span>';
+  html += '<span>SUMMARY</span></div>';
+
+  ag.forEach((a, i) => {
+    const selected = i === sel;
+    html += '<div class="agent-row status-' + a.status + (selected ? ' selected' : '') + '" data-agent="' + i + '">';
+    html += '<span class="pipe">\u2502 </span>';
+    html += '<span class="status-icon">' + statusIcon(a.status) + '</span>';
+    html += '<span class="status-text">' + pad(statusLabel(a.status), 8) + '</span>';
+    html += '<span class="role">' + pad(a.role, 12) + '</span>';
+    html += '<span class="branch">' + pad(a.branch, 28) + '</span>';
+    html += '<span class="summary">' + esc(a.summary.substring(0, 50)) + '</span>';
+    html += '</div>';
+  });
+
+  html += '<div class="section-border">\u2514' + '\u2500'.repeat(70) + '</div>';
+  html += '</div>';
+
+  // Main content area based on view mode
+  if (state.viewMode === "focus") {
+    html += '<div class="terminal-area">';
+    html += '<div class="section-border">\u250c ' + esc(curAgent.role) + ' \u2500\u2500 ' + esc(curAgent.branch) + ' \u2500\u2500 ' + esc(curAgent.status) + ' ' + '\u2500'.repeat(20) + '</div>';
+    html += '<div class="terminal-content" id="terminalContent">';
+    html += renderAgentTerminal(curAgent.role);
+    html += '</div>';
+    html += '<div class="section-border">\u2514' + '\u2500'.repeat(70) + '</div>';
+    html += '</div>';
+  } else if (state.viewMode === "compare") {
+    const compAgent = ag[state.compareAgent] || ag[1] || ag[0];
+    html += '<div class="compare-container">';
+
+    html += '<div class="compare-pane">';
+    html += '<div class="section-border">\u250c ' + esc(curAgent.role) + ' \u2500\u2500 ' + esc(curAgent.status) + ' ' + '\u2500'.repeat(10) + '</div>';
+    html += '<div class="terminal-content">' + renderAgentTerminal(curAgent.role) + '</div>';
+    html += '<div class="section-border">\u2514' + '\u2500'.repeat(35) + '</div>';
+    html += '</div>';
+
+    html += '<div class="compare-divider"></div>';
+
+    html += '<div class="compare-pane">';
+    html += '<div class="section-border">\u250c ' + esc(compAgent.role) + ' \u2500\u2500 ' + esc(compAgent.status) + ' ' + '\u2500'.repeat(10) + '</div>';
+    html += '<div class="terminal-content">' + renderAgentTerminal(compAgent.role) + '</div>';
+    html += '<div class="section-border">\u2514' + '\u2500'.repeat(35) + '</div>';
+    html += '</div>';
+
+    html += '</div>';
+  } else if (state.viewMode === "mission") {
+    html += '<div class="mission-table">';
+    html += '<div class="section-border">\u250c mission \u2500'.repeat(10) + '</div>';
+
+    html += '<div class="agent-header-row"><span class="pipe">\u2502 </span>';
+    html += '<span style="min-width:12ch;display:inline-block">ROLE</span>';
+    html += '<span style="min-width:8ch;display:inline-block">STATUS</span>';
+    html += '<span>LAST OUTPUT</span></div>';
+
+    ag.forEach((a) => {
+      const lines = state.liveOutputs[w.id][a.role] || [];
+      const lastLine = lines.filter(l => l.trim() !== "").slice(-1)[0] || "(no output)";
+      html += '<div class="mission-row status-' + a.status + '">';
+      html += '<span class="pipe">\u2502 </span>';
+      html += '<span class="role">' + pad(a.role, 12) + '</span>';
+      html += '<span class="status-text">' + statusIcon(a.status) + ' ' + pad(statusLabel(a.status), 6) + '</span>';
+      html += '<span class="last-line">' + esc(lastLine.substring(0, 60)) + '</span>';
+      html += '</div>';
+    });
+
+    html += '<div class="section-border">\u2514' + '\u2500'.repeat(70) + '</div>';
+    html += '</div>';
+  }
+
+  // Feed
+  html += '<div class="feed-section">';
+  html += '<div class="section-border">\u250c feed ' + '\u2500'.repeat(64) + '</div>';
+  (w.feed || []).forEach(f => {
+    html += '<div class="feed-row"><span class="pipe">\u2502 </span>';
+    html += '<span class="time">' + esc(f.time) + '</span>';
+    html += '<span class="agent">' + esc(f.agent) + '</span>';
+    html += '<span class="text">' + esc(f.text) + '</span>';
+    html += '</div>';
+  });
+  html += '<div class="section-border">\u2514' + '\u2500'.repeat(70) + '</div>';
+  html += '</div>';
+
+  // Prompt
+  html += '<div class="prompt-line"><span class="prompt-gt">&gt;</span><input type="text" class="prompt-input" id="promptInput" spellcheck="false" autocomplete="off" placeholder="" /><span class="cursor-blink" id="cursorBlink"></span></div>';
+
+  // Help bar
+  html += '<div class="help-bar">';
+  html += '<span><span class="key">[j/k]</span> navigate</span>';
+  html += '<span><span class="key">[enter]</span> focus</span>';
+  html += '<span><span class="key">[tab]</span> cycle</span>';
+  html += '<span><span class="key">[f]</span> focus</span>';
+  html += '<span><span class="key">[c]</span> compare</span>';
+  html += '<span><span class="key">[m]</span> mission</span>';
+  html += '<span><span class="key">[1-3]</span> workspace</span>';
+  html += '<span><span class="key">[:]</span> command</span>';
+  html += '<span><span class="key">[?]</span> help</span>';
+  html += '</div>';
+
+  document.getElementById("app").innerHTML = html;
+
+  // Scroll terminal to bottom
+  const tc = document.getElementById("terminalContent");
+  if (tc) tc.scrollTop = tc.scrollHeight;
+
+  // Click handlers for agent rows
+  document.querySelectorAll(".agent-row[data-agent]").forEach(row => {
+    row.addEventListener("click", () => {
+      state.selectedAgent = parseInt(row.dataset.agent);
+      state.viewMode = "focus";
+      render();
+    });
+  });
+
+  // Prompt input focus management
+  const pi = document.getElementById("promptInput");
+  if (pi) {
+    pi.addEventListener("focus", () => {
+      const cb = document.getElementById("cursorBlink");
+      if (cb) cb.style.display = "none";
+    });
+    pi.addEventListener("blur", () => {
+      const cb = document.getElementById("cursorBlink");
+      if (cb) cb.style.display = "";
+    });
+  }
+}
+
+function openCommand(prefix) {
+  state.commandOpen = true;
+  state.commandPrefix = prefix;
+  const overlay = document.getElementById("commandOverlay");
+  const input = document.getElementById("commandInput");
+  const prefixEl = document.getElementById("commandPrefix");
+  overlay.classList.add("open");
+  prefixEl.textContent = prefix;
+  input.value = "";
+  input.focus();
+}
+
+function closeCommand() {
+  state.commandOpen = false;
+  const overlay = document.getElementById("commandOverlay");
+  overlay.classList.remove("open");
+  document.getElementById("commandInput").blur();
+}
+
+function executeCommand(cmd) {
+  cmd = cmd.trim().toLowerCase();
+  // workspace switch
+  for (let i = 0; i < workspaces.length; i++) {
+    if (cmd === workspaces[i].id || cmd === workspaces[i].name.toLowerCase()) {
+      state.currentWorkspace = i;
+      state.selectedAgent = 0;
+      render();
+      return;
+    }
+  }
+  // agent focus
+  const ag = agents();
+  for (let i = 0; i < ag.length; i++) {
+    if (cmd === ag[i].role) {
+      state.selectedAgent = i;
+      state.viewMode = "focus";
+      render();
+      return;
+    }
+  }
+  // mode
+  if (cmd === "focus" || cmd === "f") { state.viewMode = "focus"; render(); return; }
+  if (cmd === "compare" || cmd === "c") { state.viewMode = "compare"; render(); return; }
+  if (cmd === "mission" || cmd === "m") { state.viewMode = "mission"; render(); return; }
+}
+
+document.getElementById("commandInput").addEventListener("keydown", (e) => {
+  if (e.key === "Escape") { closeCommand(); e.preventDefault(); }
+  if (e.key === "Enter") {
+    executeCommand(e.target.value);
+    closeCommand();
+    e.preventDefault();
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (state.commandOpen) return;
+
+  const pi = document.getElementById("promptInput");
+  if (pi && document.activeElement === pi) {
+    if (e.key === "Escape") { pi.blur(); e.preventDefault(); }
+    return;
+  }
+
+  const ag = agents();
+
+  switch (e.key) {
+    case "j":
+      state.selectedAgent = Math.min(state.selectedAgent + 1, ag.length - 1);
+      render();
+      e.preventDefault();
+      break;
+    case "k":
+      state.selectedAgent = Math.max(state.selectedAgent - 1, 0);
+      render();
+      e.preventDefault();
+      break;
+    case "Tab":
+      state.selectedAgent = (state.selectedAgent + 1) % ag.length;
+      render();
+      e.preventDefault();
+      break;
+    case "Enter":
+      state.viewMode = "focus";
+      render();
+      e.preventDefault();
+      break;
+    case "f":
+      state.viewMode = "focus";
+      render();
+      e.preventDefault();
+      break;
+    case "c":
+      state.viewMode = "compare";
+      if (state.selectedAgent === state.compareAgent) {
+        state.compareAgent = (state.selectedAgent + 1) % ag.length;
+      }
+      render();
+      e.preventDefault();
+      break;
+    case "m":
+      state.viewMode = "mission";
+      render();
+      e.preventDefault();
+      break;
+    case "1":
+    case "2":
+    case "3":
+      const idx = parseInt(e.key) - 1;
+      if (idx < workspaces.length) {
+        state.currentWorkspace = idx;
+        state.selectedAgent = 0;
+        render();
+      }
+      e.preventDefault();
+      break;
+    case ":":
+    case "/":
+      openCommand(e.key);
+      e.preventDefault();
+      break;
+    case "?":
+      e.preventDefault();
+      break;
+  }
+});
+
+// Heartbeat: add output lines every 7 seconds
+setInterval(() => {
+  const w = ws();
+  for (const agent of w.agents) {
+    const hb = heartbeatLines[w.id]?.[agent.role];
+    if (!hb || hb.length === 0) continue;
+    const counter = state.heartbeatCounters[w.id][agent.role];
+    if (counter < hb.length) {
+      state.liveOutputs[w.id][agent.role].push(hb[counter]);
+      state.heartbeatCounters[w.id][agent.role]++;
+    }
+  }
+  render();
+}, 7000);
+
+// Clock update every second
+setInterval(() => {
+  const headerLine = document.querySelector(".header-line span:last-child");
+  if (headerLine) headerLine.textContent = clock();
+}, 1000);
+
+// Compare mode: j/k also shifts compare agent when holding shift
+document.addEventListener("keydown", (e) => {
+  if (state.commandOpen) return;
+  if (document.activeElement && document.activeElement.tagName === "INPUT") return;
+
+  if (state.viewMode === "compare" && e.shiftKey) {
+    const ag = agents();
+    if (e.key === "J") {
+      state.compareAgent = Math.min(state.compareAgent + 1, ag.length - 1);
+      if (state.compareAgent === state.selectedAgent) {
+        state.compareAgent = Math.min(state.compareAgent + 1, ag.length - 1);
+      }
+      render();
+      e.preventDefault();
+    } else if (e.key === "K") {
+      state.compareAgent = Math.max(state.compareAgent - 1, 0);
+      if (state.compareAgent === state.selectedAgent) {
+        state.compareAgent = Math.max(state.compareAgent - 1, 0);
+      }
+      render();
+      e.preventDefault();
+    }
+  }
+});
+
+// Initial render
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,1335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>knot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,400&family=Literata:opsz,wght@7..72,300;7..72,400;7..72,500;7..72,600;7..72,700&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --bg: #f5f0e8;
+  --paper: #ffffff;
+  --paper-inner: #faf8f4;
+  --text: #2d2a26;
+  --muted: #8a8478;
+  --accent: #c4553a;
+  --running: #3a7c5f;
+  --needs-input: #c4553a;
+  --queued: #8a8478;
+  --idle: #b8ad9e;
+  --error: #a63d2f;
+  --shadow-a: rgba(45,42,38,0.08);
+  --shadow-b: rgba(45,42,38,0.04);
+  --radius: 8px;
+  --font-serif: 'Literata', Georgia, serif;
+  --font-sans: 'DM Sans', -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-sans);
+  color: var(--text);
+  background-color: var(--bg);
+  background-image:
+    url("data:image/svg+xml,%3Csvg width='200' height='200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.75' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scrollbar ── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--idle); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--muted); }
+
+/* ── Layout Shell ── */
+.shell {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  max-width: 1440px;
+  margin: 0 auto;
+  padding: 28px 36px 20px;
+  gap: 20px;
+}
+
+/* ── Header ── */
+.header {
+  flex-shrink: 0;
+}
+
+.header-top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.brand {
+  font-family: var(--font-serif);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.5px;
+  color: var(--text);
+}
+
+.header-rule {
+  border: none;
+  height: 1px;
+  background: var(--text);
+  opacity: 0.12;
+  margin: 10px 0 12px;
+}
+
+.header-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.workspace-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 400;
+}
+
+.workspace-tab {
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  color: var(--muted);
+  user-select: none;
+}
+
+.workspace-tab:hover {
+  background: rgba(45,42,38,0.05);
+  color: var(--text);
+}
+
+.workspace-tab.active {
+  color: var(--text);
+  font-weight: 500;
+  background: rgba(45,42,38,0.06);
+}
+
+.workspace-dot {
+  color: var(--idle);
+  font-size: 10px;
+  user-select: none;
+}
+
+.mode-toggles {
+  display: flex;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.mode-btn {
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--muted);
+  transition: all 0.2s;
+  user-select: none;
+  font-family: var(--font-sans);
+}
+
+.mode-btn:hover {
+  color: var(--text);
+  background: rgba(45,42,38,0.05);
+}
+
+.mode-btn.active {
+  color: var(--text);
+  font-weight: 500;
+  background: rgba(45,42,38,0.07);
+}
+
+/* ── Main Area ── */
+.main-area {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  gap: 20px;
+  position: relative;
+}
+
+/* ── Paper Card Base ── */
+.paper-card {
+  background: var(--paper);
+  border-radius: var(--radius);
+  box-shadow:
+    0 1px 3px var(--shadow-a),
+    0 4px 12px var(--shadow-b),
+    0 0 0 1px rgba(45,42,38,0.03);
+  transition: transform 0.25s cubic-bezier(0.22,1,0.36,1), box-shadow 0.25s ease;
+}
+
+.paper-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 2px 6px var(--shadow-a),
+    0 8px 24px var(--shadow-b),
+    0 0 0 1px rgba(45,42,38,0.03);
+}
+
+/* ── Focus View ── */
+.focus-view {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
+.focused-card-wrapper {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+/* Stacked card pseudo-elements */
+.focused-card-wrapper::before,
+.focused-card-wrapper::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 4px;
+  bottom: -3px;
+  height: 100%;
+  background: var(--paper);
+  border-radius: var(--radius);
+  z-index: -1;
+  box-shadow: 0 1px 3px var(--shadow-b);
+  opacity: 0.7;
+}
+
+.focused-card-wrapper::after {
+  left: 8px;
+  right: 8px;
+  bottom: -6px;
+  z-index: -2;
+  opacity: 0.4;
+}
+
+.focused-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Status flag tab */
+.status-flag {
+  position: absolute;
+  left: -4px;
+  top: 16px;
+  width: 8px;
+  height: 48px;
+  border-radius: 4px 0 0 4px;
+  z-index: 2;
+  transition: background-color 0.3s;
+}
+
+.status-flag.running { background: var(--running); }
+.status-flag.needs-input { background: var(--needs-input); }
+.status-flag.queued { background: var(--queued); }
+.status-flag.idle { background: var(--idle); }
+.status-flag.error { background: var(--error); }
+
+.focused-card-header {
+  padding: 18px 24px 14px 28px;
+  border-bottom: 1px solid rgba(45,42,38,0.06);
+  flex-shrink: 0;
+}
+
+.focused-card-role {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--muted);
+  margin-bottom: 2px;
+}
+
+.focused-card-branch {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--text);
+  opacity: 0.7;
+}
+
+.focused-card-summary {
+  padding: 10px 24px 10px 28px;
+  font-size: 13px;
+  color: var(--muted);
+  border-bottom: 1px solid rgba(45,42,38,0.04);
+  flex-shrink: 0;
+}
+
+.terminal-area {
+  flex: 1;
+  min-height: 0;
+  padding: 16px 20px 16px 24px;
+  overflow-y: auto;
+  background: var(--paper-inner);
+  border-radius: 0 0 var(--radius) var(--radius);
+}
+
+.terminal-line {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.75;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.terminal-line .prompt {
+  color: var(--running);
+}
+
+.terminal-line .cmd {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.terminal-line .out {
+  color: var(--muted);
+}
+
+.terminal-line .err {
+  color: var(--error);
+}
+
+.terminal-line .info {
+  color: var(--accent);
+}
+
+.terminal-cursor {
+  display: inline-block;
+  width: 7px;
+  height: 15px;
+  background: var(--text);
+  opacity: 0.7;
+  vertical-align: text-bottom;
+  animation: blink 1s steps(1) infinite;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 0.7; }
+  50% { opacity: 0; }
+}
+
+/* ── Compare View ── */
+.compare-view {
+  flex: 1;
+  display: none;
+  gap: 16px;
+  align-items: stretch;
+  padding: 8px 0;
+}
+
+.compare-view.visible {
+  display: flex;
+}
+
+.compare-card-wrapper {
+  flex: 1;
+  position: relative;
+  min-width: 0;
+}
+
+.compare-card-wrapper:nth-child(2) {
+  transform: rotate(0.8deg);
+  margin-top: 6px;
+}
+
+.compare-card-wrapper:nth-child(1) {
+  transform: rotate(-0.5deg);
+  z-index: 1;
+}
+
+.compare-card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Grid View ── */
+.grid-view {
+  flex: 1;
+  display: none;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-content: start;
+  padding: 4px;
+  overflow-y: auto;
+}
+
+.grid-view.visible {
+  display: flex;
+}
+
+.grid-card-wrapper {
+  width: calc(33.333% - 12px);
+  min-height: 180px;
+  position: relative;
+}
+
+.grid-card-wrapper:nth-child(2n) { transform: rotate(0.4deg); }
+.grid-card-wrapper:nth-child(3n) { transform: rotate(-0.6deg); }
+.grid-card-wrapper:nth-child(5n) { transform: rotate(0.8deg); }
+.grid-card-wrapper:nth-child(4n) { transform: rotate(-0.3deg); }
+
+.grid-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  cursor: pointer;
+}
+
+.grid-card .terminal-area {
+  flex: 1;
+  padding: 10px 14px;
+  font-size: 11px;
+}
+
+.grid-card .terminal-line {
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 240px;
+  flex-shrink: 0;
+}
+
+.sidebar-card {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.sidebar-title {
+  font-family: var(--font-serif);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid rgba(45,42,38,0.06);
+  flex-shrink: 0;
+}
+
+.session-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 6px 0;
+}
+
+.session-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 18px 10px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.session-item:hover {
+  background: rgba(45,42,38,0.03);
+}
+
+.session-item.active {
+  background: rgba(45,42,38,0.05);
+  padding-left: 18px;
+}
+
+.session-status-bar {
+  width: 3px;
+  min-height: 32px;
+  align-self: stretch;
+  border-radius: 2px;
+  flex-shrink: 0;
+  transition: background-color 0.3s;
+}
+
+.session-status-bar.running { background: var(--running); }
+.session-status-bar.needs-input { background: var(--needs-input); }
+.session-status-bar.queued { background: var(--queued); }
+.session-status-bar.idle { background: var(--idle); }
+.session-status-bar.error { background: var(--error); }
+
+.session-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.session-role {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.session-summary {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Event Feed ── */
+.event-feed {
+  flex-shrink: 0;
+}
+
+.feed-label {
+  font-family: var(--font-serif);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  margin-bottom: 10px;
+  padding-left: 2px;
+}
+
+.feed-scroll {
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 6px;
+  scroll-behavior: smooth;
+}
+
+.feed-card {
+  min-width: 210px;
+  max-width: 240px;
+  padding: 14px 16px;
+  cursor: pointer;
+  flex-shrink: 0;
+  background: var(--paper);
+  border-radius: var(--radius);
+  box-shadow:
+    0 1px 2px var(--shadow-a),
+    0 3px 8px var(--shadow-b);
+  transition: transform 0.2s cubic-bezier(0.22,1,0.36,1), box-shadow 0.2s;
+}
+
+.feed-card:hover {
+  transform: translateY(-3px) rotate(-0.3deg);
+  box-shadow:
+    0 3px 8px var(--shadow-a),
+    0 8px 20px var(--shadow-b);
+}
+
+.feed-agent {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+.feed-text {
+  font-size: 12.5px;
+  color: var(--text);
+  line-height: 1.45;
+  margin-bottom: 6px;
+}
+
+.feed-time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--idle);
+}
+
+/* ── Workspace Meta ── */
+.workspace-meta {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+  padding-left: 2px;
+}
+
+.workspace-meta span {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+}
+
+/* ── Heartbeat pulse ── */
+.heartbeat-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--running);
+  margin-right: 6px;
+  vertical-align: middle;
+  animation: heartbeat 7s ease-in-out infinite;
+}
+
+@keyframes heartbeat {
+  0%, 85%, 100% { opacity: 0.3; transform: scale(1); }
+  90% { opacity: 1; transform: scale(1.4); }
+  93% { opacity: 0.7; transform: scale(0.95); }
+  96% { opacity: 1; transform: scale(1.2); }
+}
+
+/* ── Card transitions ── */
+.card-enter {
+  animation: cardSlideIn 0.4s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+
+@keyframes cardSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.card-shuffle-out {
+  animation: cardShuffleOut 0.3s cubic-bezier(0.55,0,1,0.45) forwards;
+}
+
+@keyframes cardShuffleOut {
+  to {
+    opacity: 0;
+    transform: translateX(-40px) scale(0.95);
+  }
+}
+
+.card-shuffle-in {
+  animation: cardShuffleIn 0.35s cubic-bezier(0.22,1,0.36,1) forwards;
+}
+
+@keyframes cardShuffleIn {
+  from {
+    opacity: 0;
+    transform: translateX(40px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* ── Hidden utility ── */
+.hidden { display: none !important; }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .shell { padding: 16px 16px 12px; gap: 14px; }
+  .sidebar { width: 180px; }
+  .grid-card-wrapper { width: calc(50% - 8px); }
+}
+
+@media (max-width: 640px) {
+  .main-area { flex-direction: column; }
+  .sidebar { width: 100%; max-height: 200px; }
+  .grid-card-wrapper { width: 100%; }
+}
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- Header -->
+  <header class="header">
+    <div class="header-top">
+      <div class="brand">knot</div>
+      <div class="workspace-meta">
+        <span><span class="heartbeat-dot"></span>live</span>
+      </div>
+    </div>
+    <hr class="header-rule">
+    <div class="header-bottom">
+      <div class="workspace-tabs" id="workspaceTabs"></div>
+      <div class="mode-toggles" id="modeToggles">
+        <div class="mode-btn active" data-mode="focus">Focus</div>
+        <div class="mode-btn" data-mode="compare">Compare</div>
+        <div class="mode-btn" data-mode="grid">Grid</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <div class="main-area" id="mainArea">
+    <!-- Focus view -->
+    <div class="focus-view" id="focusView">
+      <div class="focused-card-wrapper">
+        <div class="paper-card focused-card" id="focusedCard"></div>
+      </div>
+    </div>
+
+    <!-- Compare view -->
+    <div class="compare-view" id="compareView">
+      <div class="compare-card-wrapper">
+        <div class="paper-card compare-card" id="compareLeft"></div>
+      </div>
+      <div class="compare-card-wrapper">
+        <div class="paper-card compare-card" id="compareRight"></div>
+      </div>
+    </div>
+
+    <!-- Grid view -->
+    <div class="grid-view" id="gridView"></div>
+
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebarWrap">
+      <div class="paper-card sidebar-card">
+        <div class="sidebar-title">Sessions</div>
+        <div class="session-list" id="sessionList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Event feed -->
+  <div class="event-feed">
+    <div class="feed-label">Recent activity</div>
+    <div class="feed-scroll" id="feedScroll"></div>
+  </div>
+</div>
+
+<script>
+// ── Data ──
+const workspaces = [
+  {
+    id: "atlas", name: "Atlas", repo: "~/work/atlas-core", template: "Full swarm", spike: "2m ago",
+    agents: [
+      { role: "planner", summary: "Plan API split, queue schema migration, stage agent handoffs.", status: "needs-input", branch: "feat/workspace-stream" },
+      { role: "coder-a", summary: "Refactor server bootstrap and keep auth adapter isolated.", status: "running", branch: "feat/auth-slice" },
+      { role: "coder-b", summary: "Wiring compare overlay and preserving active focus path.", status: "running", branch: "feat/focus-rail" },
+      { role: "tests", summary: "Replay API contract suite against mock and staging outputs.", status: "queued", branch: "test/contracts" },
+      { role: "logs", summary: "Streaming edge logs, deploy hooks, and queue failures.", status: "idle", branch: "ops/live" },
+      { role: "research", summary: "Collect terminal UX notes and keyboard priority conflicts.", status: "error", branch: "docs/research" }
+    ],
+    feed: [
+      { agent: "coder-b", text: "Compare mode now mirrors primary focus and secondary selection.", time: "11:02" },
+      { agent: "planner", text: "Waiting on user input for repo grouping strategy.", time: "10:59" },
+      { agent: "logs", text: "No new deploy errors in the last 12 minutes.", time: "10:54" },
+      { agent: "research", text: "Found collision between workspace switch and tmux defaults.", time: "10:48" }
+    ]
+  },
+  {
+    id: "rune", name: "Rune", repo: "~/work/rune-ui", template: "Frontend train", spike: "7m ago",
+    agents: [
+      { role: "planner", summary: "Split tasks by route, animation pass, and accessibility audit.", status: "running", branch: "feat/plan-pass" },
+      { role: "ui", summary: "Building motion-heavy shell with card stack navigation.", status: "running", branch: "feat/hero-shell" },
+      { role: "review", summary: "Checking contrast and keyboard flow in mission control.", status: "needs-input", branch: "chore/review" },
+      { role: "tests", summary: "Running snapshot and navigation test queue.", status: "queued", branch: "test/nav" },
+      { role: "notes", summary: "Summarizing design decisions and copy changes.", status: "idle", branch: "docs/notes" }
+    ],
+    feed: [
+      { agent: "ui", text: "Main canvas animation landed; waiting on reduced-motion fallback.", time: "11:11" },
+      { agent: "review", text: "Keyboard trap found in command palette overlay.", time: "11:06" },
+      { agent: "planner", text: "Reordered workspaces to prioritize shipping path.", time: "11:01" }
+    ]
+  },
+  {
+    id: "moss", name: "Moss", repo: "~/work/moss-data", template: "Ops watch", spike: "now",
+    agents: [
+      { role: "ingest", summary: "Backfill worker is replaying 14k rows from archive.", status: "running", branch: "ops/backfill" },
+      { role: "db", summary: "Examining index pressure after wide workspace restore.", status: "needs-input", branch: "fix/index-plan" },
+      { role: "etl", summary: "Queue paused pending schema version match.", status: "queued", branch: "etl/schema" },
+      { role: "logs", summary: "P95 latency dipped after job burst normalized.", status: "idle", branch: "ops/latency" },
+      { role: "audit", summary: "Comparing failed rows against last clean checkpoint.", status: "running", branch: "ops/audit" }
+    ],
+    feed: [
+      { agent: "db", text: "Index planner is blocked on cardinality snapshot.", time: "11:16" },
+      { agent: "ingest", text: "Backfill throughput stable at 1.2k rows/min.", time: "11:14" },
+      { agent: "audit", text: "Three suspect rows promoted for manual review.", time: "11:08" }
+    ]
+  }
+];
+
+// ── Terminal output generator ──
+const terminalOutputs = {
+  planner: {
+    "needs-input": [
+      { type: 'prompt', text: '$ knot plan --workspace atlas' },
+      { type: 'out', text: '[planner] Loading workspace graph... done (14 nodes)' },
+      { type: 'out', text: '[planner] Analyzing dependency tree for API split...' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '  Proposed task breakdown:' },
+      { type: 'out', text: '    1. Extract auth routes     -> coder-a  (feat/auth-slice)' },
+      { type: 'out', text: '    2. Migrate schema v3->v4   -> coder-b  (feat/focus-rail)' },
+      { type: 'out', text: '    3. Contract tests          -> tests    (test/contracts)' },
+      { type: 'out', text: '    4. Deploy hook wiring      -> logs     (ops/live)' },
+      { type: 'out', text: '' },
+      { type: 'info', text: '[planner] Waiting on user input: confirm repo grouping strategy' },
+      { type: 'info', text: '          Options: (a) monorepo split  (b) workspace federation' },
+      { type: 'out', text: '' },
+      { type: 'prompt', text: '$ _', cursor: true }
+    ],
+    running: [
+      { type: 'prompt', text: '$ knot plan --workspace rune --mode=auto' },
+      { type: 'out', text: '[planner] Scanning route tree... 8 routes, 3 layouts' },
+      { type: 'out', text: '[planner] Animation pass queued for hero-shell' },
+      { type: 'out', text: '[planner] Accessibility audit scheduled: contrast + keyboard' },
+      { type: 'out', text: '[planner] Reordering by shipping priority...' },
+      { type: 'out', text: '  1. feat/hero-shell    (ui)      -> in progress' },
+      { type: 'out', text: '  2. chore/review       (review)  -> needs input' },
+      { type: 'out', text: '  3. test/nav           (tests)   -> queued' },
+      { type: 'out', text: '[planner] Plan committed. Agents notified.' },
+      { type: 'prompt', text: '$ _', cursor: true }
+    ]
+  },
+  "coder-a": {
+    running: [
+      { type: 'prompt', text: '$ git checkout feat/auth-slice && npm run dev' },
+      { type: 'out', text: "Switched to branch 'feat/auth-slice'" },
+      { type: 'out', text: '[dev] Server starting on :3001...' },
+      { type: 'out', text: '[dev] Hot reload enabled' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '[coder-a] Extracting auth adapter from server bootstrap...' },
+      { type: 'out', text: '  Moving: src/server/auth.ts -> src/auth/adapter.ts' },
+      { type: 'out', text: '  Updating 7 import references...' },
+      { type: 'out', text: '  Adding isolation boundary at src/auth/index.ts' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '[dev] Rebuild: 340ms (clean)' },
+      { type: 'out', text: '[coder-a] Auth adapter isolated. Running lint...' },
+      { type: 'out', text: '  0 errors, 0 warnings' },
+      { type: 'prompt', text: '$ _', cursor: true }
+    ]
+  },
+  "coder-b": {
+    running: [
+      { type: 'prompt', text: '$ git diff --stat feat/focus-rail' },
+      { type: 'out', text: ' src/components/FocusRail.tsx   | 84 +++++++++++++--' },
+      { type: 'out', text: ' src/components/CompareView.tsx | 47 ++++++' },
+      { type: 'out', text: ' src/hooks/useFocusPath.ts      | 31 +++--' },
+      { type: 'out', text: ' 3 files changed, 138 insertions(+), 24 deletions(-)' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '[coder-b] Compare overlay wired to focus path state' },
+      { type: 'out', text: '[coder-b] Active selection preserved across mode switches' },
+      { type: 'out', text: '[dev] Rebuild: 280ms (incremental)' },
+      { type: 'out', text: '[coder-b] Verifying mirror sync between panels...' },
+      { type: 'out', text: '  Left panel:  planner (needs-input)' },
+      { type: 'out', text: '  Right panel: coder-a (running)' },
+      { type: 'out', text: '  Sync: OK' },
+      { type: 'prompt', text: '$ _', cursor: true }
+    ]
+  },
+  tests: {
+    queued: [
+      { type: 'prompt', text: '$ knot test --suite=contracts --env=staging' },
+      { type: 'out', text: '[tests] Queued. Waiting for available runner...' },
+      { type: 'out', text: '[tests] Position in queue: 2' },
+      { type: 'out', text: '[tests] Dependencies: feat/auth-slice must pass lint first' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '  Planned suite:' },
+      { type: 'out', text: '    api/auth.contract.ts        (12 assertions)' },
+      { type: 'out', text: '    api/workspace.contract.ts   (8 assertions)' },
+      { type: 'out', text: '    api/stream.contract.ts      (15 assertions)' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '[tests] Estimated start: ~3 minutes' },
+    ]
+  },
+  logs: {
+    idle: [
+      { type: 'prompt', text: '$ knot logs --stream --filter=deploy,queue' },
+      { type: 'out', text: '[logs] Connected to edge log stream' },
+      { type: 'out', text: '[logs] Filters: deploy hooks, queue failures' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '10:42:18  deploy  hook/pre-deploy passed (atlas-core@v2.14.1)' },
+      { type: 'out', text: '10:42:30  deploy  CDN invalidation complete (18 paths)' },
+      { type: 'out', text: '10:43:01  queue   all queues healthy, depth: [0, 0, 2, 0]' },
+      { type: 'out', text: '10:48:15  deploy  no new deploys' },
+      { type: 'out', text: '10:54:00  queue   depth stable, no failures in 12m' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '[logs] Idle. Watching...' },
+    ],
+    "idle-moss": [
+      { type: 'prompt', text: '$ knot logs --stream --filter=latency' },
+      { type: 'out', text: '[logs] Monitoring P95 latency for moss-data...' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '11:02:00  p95=142ms  p99=310ms  burst=false' },
+      { type: 'out', text: '11:05:00  p95=205ms  p99=480ms  burst=true  (backfill)' },
+      { type: 'out', text: '11:08:00  p95=188ms  p99=390ms  burst=true' },
+      { type: 'out', text: '11:11:00  p95=127ms  p99=260ms  burst=false' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '[logs] P95 dipped. Job burst normalized.' },
+    ]
+  },
+  research: {
+    error: [
+      { type: 'prompt', text: '$ knot research --topic="terminal UX" --scan' },
+      { type: 'out', text: '[research] Scanning docs/research for UX notes...' },
+      { type: 'out', text: '[research] Found 14 entries, 3 conflicts flagged' },
+      { type: 'out', text: '' },
+      { type: 'err', text: 'ERROR: Keyboard shortcut collision detected' },
+      { type: 'err', text: '  Ctrl+Shift+W  ->  workspace switch (knot)' },
+      { type: 'err', text: '  Ctrl+Shift+W  ->  close pane (tmux default)' },
+      { type: 'out', text: '' },
+      { type: 'err', text: 'ERROR: Focus trap conflict in nested terminal contexts' },
+      { type: 'err', text: '  Modal overlay captures Tab before terminal receives it' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '[research] 2 errors need resolution. Halted.' },
+    ]
+  },
+  ui: {
+    running: [
+      { type: 'prompt', text: '$ npm run dev -- --mode=motion' },
+      { type: 'out', text: '[vite] Dev server running at http://localhost:5173' },
+      { type: 'out', text: '[ui] Motion mode enabled, prefers-reduced-motion: no-preference' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '[ui] Building card stack navigation...' },
+      { type: 'out', text: '  CardStack.tsx     mounted with spring physics' },
+      { type: 'out', text: '  useGesture.ts     swipe handlers registered' },
+      { type: 'out', text: '  transitions.css   keyframes compiled (12 animations)' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '[hmr] 2 modules updated in 85ms' },
+      { type: 'out', text: '[ui] Hero shell landed. Need reduced-motion fallback.' },
+      { type: 'prompt', text: '$ _', cursor: true }
+    ]
+  },
+  review: {
+    "needs-input": [
+      { type: 'prompt', text: '$ knot review --scope=a11y --target=mission-control' },
+      { type: 'out', text: '[review] Running accessibility audit...' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '  Contrast check:   12/14 passed  (2 warnings on muted text)' },
+      { type: 'out', text: '  Keyboard flow:    FAIL' },
+      { type: 'out', text: '' },
+      { type: 'info', text: '  Issue: Focus trap in command palette overlay' },
+      { type: 'info', text: '  Tab key captured by overlay before grid cards receive focus' },
+      { type: 'info', text: '  Suggested fix: Add tabindex management on overlay dismiss' },
+      { type: 'out', text: '' },
+      { type: 'info', text: '[review] Waiting on input: apply suggested fix? (y/n)' },
+    ]
+  },
+  notes: {
+    idle: [
+      { type: 'prompt', text: '$ knot notes --summarize --last=2h' },
+      { type: 'out', text: '[notes] Generating summary from last 2 hours...' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '  Design decisions:' },
+      { type: 'out', text: '    - Card stack replaces tab bar (approved)' },
+      { type: 'out', text: '    - Serif headings + sans body (approved)' },
+      { type: 'out', text: '    - Paper texture background (testing)' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '  Copy changes:' },
+      { type: 'out', text: '    - "Dashboard" -> "Desk" (voice alignment)' },
+      { type: 'out', text: '    - Status labels lowercase (consistency)' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '[notes] Summary saved to docs/notes/2026-03-12.md' },
+    ]
+  },
+  ingest: {
+    running: [
+      { type: 'prompt', text: '$ knot ingest --backfill --source=archive --limit=14000' },
+      { type: 'out', text: '[ingest] Starting backfill from archive...' },
+      { type: 'out', text: '[ingest] Source: moss-data/archive/2026-03-11' },
+      { type: 'out', text: '[ingest] Rows to process: 14,000' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '  [=========>                    ]  32%  4,480/14,000' },
+      { type: 'out', text: '  Throughput: 1.2k rows/min' },
+      { type: 'out', text: '  ETA: ~8 minutes remaining' },
+      { type: 'out', text: '  Errors: 3 (quarantined)' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '[ingest] Backfill in progress. Stable.' },
+      { type: 'prompt', text: '$ _', cursor: true }
+    ]
+  },
+  db: {
+    "needs-input": [
+      { type: 'prompt', text: '$ knot db --analyze-indexes --workspace=moss' },
+      { type: 'out', text: '[db] Analyzing index pressure...' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '  Index: events_workspace_id    size: 2.4GB  bloat: 12%' },
+      { type: 'out', text: '  Index: events_created_at      size: 1.8GB  bloat: 8%' },
+      { type: 'out', text: '  Index: events_agent_role       size: 640MB  bloat: 3%' },
+      { type: 'out', text: '' },
+      { type: 'info', text: '[db] Cardinality snapshot needed before reindex' },
+      { type: 'info', text: '     Run: knot db --cardinality-snapshot to proceed' },
+      { type: 'info', text: '[db] Waiting on input: approve cardinality scan? (y/n)' },
+    ]
+  },
+  etl: {
+    queued: [
+      { type: 'prompt', text: '$ knot etl --resume --schema-check' },
+      { type: 'out', text: '[etl] Checking schema version compatibility...' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '  Source schema:  v3.2.1' },
+      { type: 'out', text: '  Target schema:  v3.3.0' },
+      { type: 'out', text: '  Status:         MISMATCH' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '[etl] Queue paused. Waiting for schema migration to complete.' },
+      { type: 'out', text: '[etl] Dependency: fix/index-plan must resolve first' },
+    ]
+  },
+  audit: {
+    running: [
+      { type: 'prompt', text: '$ knot audit --checkpoint=latest --compare=failed' },
+      { type: 'out', text: '[audit] Loading last clean checkpoint (2026-03-11T22:00Z)...' },
+      { type: 'out', text: '[audit] Comparing failed rows against checkpoint...' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '  Total failed:     47' },
+      { type: 'out', text: '  Schema mismatch:  31' },
+      { type: 'out', text: '  Null violation:   13' },
+      { type: 'out', text: '  Suspect data:     3  -> promoted for manual review' },
+      { type: 'out', text: '' },
+      { type: 'out', text: '[audit] Suspect rows written to audit/review-queue.json' },
+      { type: 'out', text: '[audit] Continuing scan...' },
+      { type: 'prompt', text: '$ _', cursor: true }
+    ]
+  }
+};
+
+function getTerminalOutput(role, status, workspaceId) {
+  // Special case for moss logs
+  if (role === 'logs' && workspaceId === 'moss') {
+    return terminalOutputs.logs['idle-moss'] || terminalOutputs.logs[status] || [];
+  }
+  const roleOutputs = terminalOutputs[role];
+  if (!roleOutputs) return defaultTerminalOutput(role, status);
+  return roleOutputs[status] || Object.values(roleOutputs)[0] || [];
+}
+
+function defaultTerminalOutput(role, status) {
+  return [
+    { type: 'prompt', text: `$ knot ${role} --status` },
+    { type: 'out', text: `[${role}] Status: ${status}` },
+    { type: 'out', text: `[${role}] Awaiting instructions...` },
+  ];
+}
+
+function renderTerminalLines(lines) {
+  return lines.map(line => {
+    if (line.cursor) {
+      return `<div class="terminal-line"><span class="prompt">$ </span><span class="terminal-cursor"></span></div>`;
+    }
+    const cls = line.type === 'prompt' ? 'cmd' : line.type === 'err' ? 'err' : line.type === 'info' ? 'info' : 'out';
+    if (line.type === 'prompt') {
+      const parts = line.text.split('$ ');
+      if (parts.length > 1) {
+        return `<div class="terminal-line"><span class="prompt">$ </span><span class="cmd">${escHtml(parts[1])}</span></div>`;
+      }
+    }
+    return `<div class="terminal-line"><span class="${cls}">${escHtml(line.text)}</span></div>`;
+  }).join('');
+}
+
+function escHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+// ── State ──
+let currentWorkspace = 0;
+let currentAgent = 0;
+let currentMode = 'focus';
+let compareSecond = 1;
+
+// ── DOM refs ──
+const workspaceTabs = document.getElementById('workspaceTabs');
+const modeToggles = document.getElementById('modeToggles');
+const focusView = document.getElementById('focusView');
+const compareView = document.getElementById('compareView');
+const gridView = document.getElementById('gridView');
+const focusedCard = document.getElementById('focusedCard');
+const sessionList = document.getElementById('sessionList');
+const feedScroll = document.getElementById('feedScroll');
+const sidebarWrap = document.getElementById('sidebarWrap');
+const compareLeft = document.getElementById('compareLeft');
+const compareRight = document.getElementById('compareRight');
+
+// ── Render workspace tabs ──
+function renderWorkspaceTabs() {
+  let html = '';
+  workspaces.forEach((ws, i) => {
+    if (i > 0) html += '<span class="workspace-dot">&middot;</span>';
+    html += `<div class="workspace-tab ${i === currentWorkspace ? 'active' : ''}" data-ws="${i}">${ws.name}</div>`;
+  });
+  workspaceTabs.innerHTML = html;
+
+  workspaceTabs.querySelectorAll('.workspace-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const idx = parseInt(tab.dataset.ws);
+      if (idx !== currentWorkspace) {
+        switchWorkspace(idx);
+      }
+    });
+  });
+}
+
+// ── Switch workspace with animation ──
+function switchWorkspace(idx) {
+  const container = currentMode === 'focus' ? focusedCard :
+                    currentMode === 'compare' ? compareLeft :
+                    gridView;
+
+  container.classList.add('card-shuffle-out');
+  setTimeout(() => {
+    container.classList.remove('card-shuffle-out');
+    currentWorkspace = idx;
+    currentAgent = 0;
+    compareSecond = Math.min(1, workspaces[idx].agents.length - 1);
+    renderAll();
+    container.classList.add('card-shuffle-in');
+    setTimeout(() => container.classList.remove('card-shuffle-in'), 350);
+  }, 280);
+
+  renderWorkspaceTabs();
+}
+
+// ── Render focused card ──
+function renderFocusedCard() {
+  const ws = workspaces[currentWorkspace];
+  const agent = ws.agents[currentAgent];
+  const lines = getTerminalOutput(agent.role, agent.status, ws.id);
+
+  focusedCard.innerHTML = `
+    <div class="status-flag ${agent.status}"></div>
+    <div class="focused-card-header">
+      <div class="focused-card-role">${escHtml(agent.role)}</div>
+      <div class="focused-card-branch">${escHtml(agent.branch)}</div>
+    </div>
+    <div class="focused-card-summary">${escHtml(agent.summary)}</div>
+    <div class="terminal-area">${renderTerminalLines(lines)}</div>
+  `;
+}
+
+// ── Render compare view ──
+function renderCompareView() {
+  const ws = workspaces[currentWorkspace];
+  const agentA = ws.agents[currentAgent];
+  const agentB = ws.agents[compareSecond] || ws.agents[0];
+  const linesA = getTerminalOutput(agentA.role, agentA.status, ws.id);
+  const linesB = getTerminalOutput(agentB.role, agentB.status, ws.id);
+
+  function renderCompareCard(agent, lines) {
+    return `
+      <div class="status-flag ${agent.status}"></div>
+      <div class="focused-card-header">
+        <div class="focused-card-role">${escHtml(agent.role)}</div>
+        <div class="focused-card-branch">${escHtml(agent.branch)}</div>
+      </div>
+      <div class="focused-card-summary">${escHtml(agent.summary)}</div>
+      <div class="terminal-area">${renderTerminalLines(lines)}</div>
+    `;
+  }
+
+  compareLeft.innerHTML = renderCompareCard(agentA, linesA);
+  compareRight.innerHTML = renderCompareCard(agentB, linesB);
+}
+
+// ── Render grid view ──
+function renderGridView() {
+  const ws = workspaces[currentWorkspace];
+  gridView.innerHTML = ws.agents.map((agent, i) => {
+    const lines = getTerminalOutput(agent.role, agent.status, ws.id).slice(0, 6);
+    const rotation = ['-0.3', '0.4', '-0.6', '0.2', '0.8', '-0.4'][i % 6];
+    return `
+      <div class="grid-card-wrapper" style="transform: rotate(${rotation}deg)" data-agent="${i}">
+        <div class="paper-card grid-card">
+          <div class="status-flag ${agent.status}"></div>
+          <div class="focused-card-header">
+            <div class="focused-card-role">${escHtml(agent.role)}</div>
+            <div class="focused-card-branch">${escHtml(agent.branch)}</div>
+          </div>
+          <div class="terminal-area">${renderTerminalLines(lines)}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  gridView.querySelectorAll('.grid-card-wrapper').forEach(card => {
+    card.addEventListener('click', () => {
+      const idx = parseInt(card.dataset.agent);
+      currentAgent = idx;
+      setMode('focus');
+    });
+  });
+}
+
+// ── Render session list ──
+function renderSessionList() {
+  const ws = workspaces[currentWorkspace];
+  sessionList.innerHTML = ws.agents.map((agent, i) => `
+    <div class="session-item ${i === currentAgent ? 'active' : ''}" data-agent="${i}">
+      <div class="session-status-bar ${agent.status}"></div>
+      <div class="session-info">
+        <div class="session-role">${escHtml(agent.role)}</div>
+        <div class="session-summary">${escHtml(agent.summary)}</div>
+      </div>
+    </div>
+  `).join('');
+
+  sessionList.querySelectorAll('.session-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const idx = parseInt(item.dataset.agent);
+      if (currentMode === 'compare' && idx !== currentAgent) {
+        compareSecond = idx;
+        renderCompareView();
+        renderSessionList();
+        return;
+      }
+      if (idx !== currentAgent) {
+        // Card rise animation
+        focusedCard.classList.add('card-shuffle-out');
+        setTimeout(() => {
+          focusedCard.classList.remove('card-shuffle-out');
+          currentAgent = idx;
+          renderFocusedCard();
+          renderSessionList();
+          focusedCard.classList.add('card-enter');
+          setTimeout(() => focusedCard.classList.remove('card-enter'), 400);
+        }, 250);
+      }
+    });
+  });
+}
+
+// ── Render feed ──
+function renderFeed() {
+  const ws = workspaces[currentWorkspace];
+  feedScroll.innerHTML = ws.feed.map(item => `
+    <div class="feed-card" data-agent="${item.agent}">
+      <div class="feed-agent">${escHtml(item.agent)}</div>
+      <div class="feed-text">${escHtml(item.text)}</div>
+      <div class="feed-time">${escHtml(item.time)}</div>
+    </div>
+  `).join('');
+
+  feedScroll.querySelectorAll('.feed-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const agentName = card.dataset.agent;
+      const ws = workspaces[currentWorkspace];
+      const idx = ws.agents.findIndex(a => a.role === agentName);
+      if (idx >= 0) {
+        currentAgent = idx;
+        if (currentMode !== 'focus') setMode('focus');
+        else {
+          renderFocusedCard();
+          renderSessionList();
+        }
+      }
+    });
+  });
+}
+
+// ── Mode switching ──
+function setMode(mode) {
+  currentMode = mode;
+
+  // Update toggle buttons
+  modeToggles.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.mode === mode);
+  });
+
+  // Show/hide views
+  focusView.classList.toggle('hidden', mode !== 'focus');
+  compareView.classList.toggle('hidden', mode !== 'compare');
+  compareView.classList.toggle('visible', mode === 'compare');
+  gridView.classList.toggle('hidden', mode !== 'grid');
+  gridView.classList.toggle('visible', mode === 'grid');
+  sidebarWrap.style.display = mode === 'grid' ? 'none' : '';
+
+  renderAll();
+}
+
+modeToggles.querySelectorAll('.mode-btn').forEach(btn => {
+  btn.addEventListener('click', () => setMode(btn.dataset.mode));
+});
+
+// ── Render all ──
+function renderAll() {
+  renderWorkspaceTabs();
+  renderFocusedCard();
+  renderCompareView();
+  renderGridView();
+  renderSessionList();
+  renderFeed();
+}
+
+// ── Heartbeat: simulate subtle activity ──
+const heartbeatMessages = [
+  { agent: 'system', text: 'Heartbeat OK. All streams connected.', prefix: '[sys]' },
+  { agent: 'system', text: 'Agent sync pulse completed.', prefix: '[sys]' },
+  { agent: 'system', text: 'Queue depth check: nominal.', prefix: '[sys]' },
+];
+
+let heartbeatIdx = 0;
+setInterval(() => {
+  const ws = workspaces[currentWorkspace];
+  const agent = ws.agents[currentAgent];
+
+  // Add a subtle new line to the focused terminal
+  if (currentMode === 'focus' || currentMode === 'compare') {
+    const termArea = focusedCard.querySelector('.terminal-area');
+    if (termArea) {
+      const msg = heartbeatMessages[heartbeatIdx % heartbeatMessages.length];
+      const line = document.createElement('div');
+      line.className = 'terminal-line';
+      line.innerHTML = `<span class="out">${escHtml(msg.prefix)} ${escHtml(msg.text)}</span>`;
+      line.style.opacity = '0';
+      line.style.transform = 'translateY(4px)';
+      line.style.transition = 'opacity 0.4s, transform 0.4s';
+
+      // Remove cursor temporarily
+      const cursorLine = termArea.querySelector('.terminal-cursor');
+      const cursorParent = cursorLine ? cursorLine.closest('.terminal-line') : null;
+      if (cursorParent) cursorParent.remove();
+
+      termArea.appendChild(line);
+
+      // Re-add cursor
+      if (cursorParent) {
+        termArea.appendChild(cursorParent);
+      }
+
+      requestAnimationFrame(() => {
+        line.style.opacity = '1';
+        line.style.transform = 'translateY(0)';
+      });
+
+      termArea.scrollTop = termArea.scrollHeight;
+      heartbeatIdx++;
+    }
+  }
+}, 7000);
+
+// ── Initial render ──
+renderAll();
+
+// Entrance animation
+focusedCard.classList.add('card-enter');
+setTimeout(() => focusedCard.classList.remove('card-enter'), 400);
+</script>
+</body>
+</html>

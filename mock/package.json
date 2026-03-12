@@ -1,0 +1,9 @@
+{
+  "name": "knot",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Prototype terminal workspace manager for parallel agentic work.",
+  "scripts": {
+    "start": "node server.js"
+  }
+}

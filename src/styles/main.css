@@ -1,0 +1,396 @@
+/* ── knot — Mission Control terminal styles ────────────── */
+
+@import "@xterm/xterm/css/xterm.css";
+
+:root {
+  --bg: #0a0a0c;
+  --bg-surface: #111114;
+  --bg-elevated: #18181b;
+  --border: #1a1a2e;
+  --border-active: #2a2a4e;
+  --text: #d4d4d8;
+  --text-muted: #71717a;
+  --text-dim: #52525b;
+  --accent: #5b8aff;
+  --running: #00ff88;
+  --needs-input: #ff6b35;
+  --queued: #5b8aff;
+  --idle: #52525b;
+  --error: #ff2d55;
+  --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", "Fira Code", monospace;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #app {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── App shell ──────────────────────────────────────────── */
+
+.knot-shell {
+  display: grid;
+  grid-template-rows: 38px 32px 1fr 24px;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ── Top bar ────────────────────────────────────────────── */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 12px;
+  background: var(--bg-surface);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  -webkit-app-region: drag;
+}
+
+.topbar-brand {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+
+.brand-name {
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+  color: var(--text);
+}
+
+.brand-version {
+  font-size: 10px;
+  color: var(--text-dim);
+}
+
+.workspace-tabs {
+  display: flex;
+  gap: 2px;
+  margin-left: 16px;
+  -webkit-app-region: no-drag;
+}
+
+.ws-tab {
+  padding: 6px 12px;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  transition: color 120ms, border-color 120ms;
+}
+
+.ws-tab:hover {
+  color: var(--text);
+}
+
+.ws-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+}
+
+.ws-tab-new {
+  color: var(--text-dim);
+  font-size: 14px;
+  padding: 4px 8px;
+}
+
+.ws-tab-new:hover {
+  color: var(--accent);
+}
+
+.topbar-status {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  -webkit-app-region: no-drag;
+}
+
+.status-led {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+}
+
+.status-led.running {
+  color: var(--running);
+}
+
+.topbar-clock {
+  font-size: 11px;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Terminal tab bar ───────────────────────────────────── */
+
+.terminal-tabbar {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.terminal-tabbar::-webkit-scrollbar {
+  display: none;
+}
+
+.term-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 14px;
+  border: none;
+  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 100ms, color 100ms;
+}
+
+.term-tab:hover {
+  background: var(--bg-surface);
+  color: var(--text);
+}
+
+.term-tab.active {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-bottom: 2px solid var(--accent);
+}
+
+.tab-index {
+  color: var(--text-dim);
+  font-size: 10px;
+  min-width: 14px;
+}
+
+.tab-title {
+  color: inherit;
+}
+
+.tab-dead {
+  color: var(--error);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+.term-tab-new {
+  padding: 0 12px;
+  color: var(--text-dim);
+  font-size: 16px;
+  border-right: none;
+}
+
+.term-tab-new:hover {
+  color: var(--accent);
+}
+
+/* ── Terminal viewport ──────────────────────────────────── */
+
+.terminal-viewport {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.terminal-pane {
+  position: absolute;
+  inset: 0;
+  padding: 4px;
+  overflow: hidden;
+}
+
+.terminal-pane .xterm {
+  height: 100%;
+}
+
+.terminal-pane.active {
+  z-index: 1;
+}
+
+/* ── Split layout ───────────────────────────────────────── */
+
+.split {
+  display: grid;
+  position: absolute;
+  inset: 0;
+  gap: 1px;
+  background: var(--border);
+}
+
+.split-horizontal {
+  grid-template-columns: 1fr 1fr;
+}
+
+.split-vertical {
+  grid-template-rows: 1fr 1fr;
+}
+
+.split-child {
+  position: relative;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+.split-child .terminal-pane {
+  position: absolute;
+  inset: 0;
+}
+
+.split-handle {
+  position: absolute;
+  z-index: 10;
+}
+
+.split-handle-horizontal {
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 6px;
+  margin-left: -3px;
+  cursor: col-resize;
+}
+
+.split-handle-vertical {
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 6px;
+  margin-top: -3px;
+  cursor: row-resize;
+}
+
+.split-handle:hover {
+  background: rgba(91, 138, 255, 0.3);
+}
+
+/* ── Bottom bar ─────────────────────────────────────────── */
+
+.bottombar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  padding: 0 12px;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border);
+  font-size: 11px;
+  user-select: none;
+}
+
+.bb-section {
+  color: var(--text-muted);
+  padding: 0 4px;
+}
+
+.bb-sep {
+  color: var(--border);
+  padding: 0 2px;
+}
+
+.bb-spacer {
+  flex: 1;
+}
+
+.bb-hint {
+  color: var(--text-dim);
+  font-size: 10px;
+}
+
+/* ── Command palette ────────────────────────────────────── */
+
+.command-palette {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 15vh;
+}
+
+.command-palette-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.command-palette-dialog {
+  position: relative;
+  width: 520px;
+  max-height: 400px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-active);
+  overflow: hidden;
+}
+
+.command-palette-input {
+  width: 100%;
+  padding: 14px 16px;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-surface);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.command-palette-input::placeholder {
+  color: var(--text-dim);
+}
+
+.command-palette-results {
+  max-height: 340px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.palette-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  cursor: pointer;
+  transition: background 80ms;
+}
+
+.palette-row:hover,
+.palette-row.selected {
+  background: rgba(91, 138, 255, 0.1);
+}
+
+.palette-action {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.palette-keybind {
+  color: var(--text-dim);
+  font-size: 10px;
+  text-transform: uppercase;
+}
