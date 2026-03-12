@@ -88,8 +88,7 @@ export class TerminalManager {
     const fontConfig = config?.font;
     const termConfig = config?.terminal;
 
-    const defaultFontFamily =
-      "Cascadia Code, Fira Code, JetBrains Mono, SF Mono, Ubuntu Mono, Consolas, DejaVu Sans Mono, Liberation Mono, monospace";
+    const defaultFontFamily = "monospace";
 
     const term = new Terminal({
       fontFamily: fontConfig?.family || defaultFontFamily,
@@ -230,8 +229,7 @@ export class TerminalManager {
 
   applyConfig(config: KnotConfig | null): void {
     const fontConfig = config?.font;
-    const defaultFontFamily =
-      "Cascadia Code, Fira Code, JetBrains Mono, SF Mono, Ubuntu Mono, Consolas, DejaVu Sans Mono, Liberation Mono, monospace";
+    const defaultFontFamily = "monospace";
     const theme = this._getTheme();
     for (const [, instance] of this.instances) {
       instance.term.options.fontFamily = fontConfig?.family || defaultFontFamily;

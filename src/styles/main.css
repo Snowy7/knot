@@ -17,9 +17,7 @@
   --queued: #5b8aff;
   --idle: #52525b;
   --error: #ff2d55;
-  /* System monospace stack — guaranteed to exist everywhere */
-  --font-mono: "Cascadia Code", "Fira Code", "JetBrains Mono", "SF Mono",
-    "Ubuntu Mono", "Consolas", "DejaVu Sans Mono", "Liberation Mono", monospace;
+  --font-mono: monospace;
 }
 
 *, *::before, *::after {
