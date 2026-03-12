@@ -88,8 +88,11 @@ export class TerminalManager {
     const fontConfig = config?.font;
     const termConfig = config?.terminal;
 
+    const defaultFontFamily =
+      "Cascadia Code, Fira Code, JetBrains Mono, SF Mono, Ubuntu Mono, Consolas, DejaVu Sans Mono, Liberation Mono, monospace";
+
     const term = new Terminal({
-      fontFamily: fontConfig?.family || "JetBrains Mono, monospace",
+      fontFamily: fontConfig?.family || defaultFontFamily,
       fontSize: fontConfig?.size || 14,
       lineHeight: fontConfig?.line_height || 1.2,
       fontWeight: String(fontConfig?.weight || 400) as any,
@@ -166,8 +169,11 @@ export class TerminalManager {
       instance.pendingData = [];
     }
 
+    // Fit after DOM settles — double rAF ensures layout is computed
     requestAnimationFrame(() => {
-      instance.fit.fit();
+      requestAnimationFrame(() => {
+        try { instance.fit.fit(); } catch {}
+      });
     });
   }
 
@@ -224,9 +230,11 @@ export class TerminalManager {
 
   applyConfig(config: KnotConfig | null): void {
     const fontConfig = config?.font;
+    const defaultFontFamily =
+      "Cascadia Code, Fira Code, JetBrains Mono, SF Mono, Ubuntu Mono, Consolas, DejaVu Sans Mono, Liberation Mono, monospace";
     const theme = this._getTheme();
     for (const [, instance] of this.instances) {
-      instance.term.options.fontFamily = fontConfig?.family || "JetBrains Mono, monospace";
+      instance.term.options.fontFamily = fontConfig?.family || defaultFontFamily;
       instance.term.options.fontSize = fontConfig?.size || 14;
       instance.term.options.lineHeight = fontConfig?.line_height || 1.2;
       instance.term.options.theme = theme;
