@@ -159,17 +159,11 @@ export class UIRenderer {
       row.innerHTML = `
         <span class="term-row-index">${i + 1}</span>
         <span class="term-row-title">${t.title || "shell"}</span>
-        ${!alive ? '<span class="term-row-status dead">exited</span>' : '<span class="term-row-status alive">●</span>'}
       `;
       row.addEventListener("click", () => {
         this.state.activeTerminalId = t.id;
         this._update();
         this.tm.focusActive();
-      });
-      row.addEventListener("auxclick", (e: MouseEvent) => {
-        if (e.button === 1 && ws) {
-          this.tm.closeActiveTerminal(ws.id).then(() => this.render());
-        }
       });
       container.appendChild(row);
     }

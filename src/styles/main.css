@@ -4,19 +4,14 @@
 
 :root {
   --bg: #0a0a0c;
-  --bg-surface: #111114;
-  --bg-elevated: #18181b;
-  --border: #1a1a2e;
-  --border-active: #2a2a4e;
-  --text: #d4d4d8;
-  --text-muted: #71717a;
-  --text-dim: #52525b;
-  --accent: #5b8aff;
-  --running: #00ff88;
-  --needs-input: #ff6b35;
-  --queued: #5b8aff;
-  --idle: #52525b;
-  --error: #ff2d55;
+  --bg-surface: #111113;
+  --bg-elevated: #19191b;
+  --border: #222224;
+  --border-active: #333336;
+  --text: #c8c8c8;
+  --text-muted: #707070;
+  --text-dim: #484848;
+  --accent: #909090;
   --font-mono: monospace;
 }
 
@@ -40,7 +35,7 @@ html, body, #app {
 
 .knot-shell {
   display: grid;
-  grid-template-rows: 38px 1fr 24px;
+  grid-template-rows: 32px 1fr 22px;
   height: 100vh;
   overflow: hidden;
 }
@@ -67,37 +62,37 @@ html, body, #app {
 
 .brand-name {
   font-weight: 700;
-  font-size: 13px;
-  letter-spacing: 0.12em;
-  color: var(--text);
+  font-size: 11px;
+  letter-spacing: 0.15em;
+  color: var(--text-muted);
 }
 
 .brand-version {
-  font-size: 10px;
+  font-size: 9px;
   color: var(--text-dim);
 }
 
 .workspace-tabs {
   display: flex;
-  gap: 2px;
-  margin-left: 16px;
+  gap: 0;
+  margin-left: 12px;
   -webkit-app-region: no-drag;
 }
 
 .ws-tab {
-  padding: 6px 12px;
+  padding: 4px 10px;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-bottom: 1px solid transparent;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text-dim);
   font: inherit;
   font-size: 11px;
   cursor: pointer;
-  transition: color 120ms, border-color 120ms;
+  transition: color 100ms, border-color 100ms;
 }
 
 .ws-tab:hover {
-  color: var(--text);
+  color: var(--text-muted);
 }
 
 .ws-tab.active {
@@ -107,12 +102,12 @@ html, body, #app {
 
 .ws-tab-new {
   color: var(--text-dim);
-  font-size: 14px;
-  padding: 4px 8px;
+  font-size: 13px;
+  padding: 2px 8px;
 }
 
 .ws-tab-new:hover {
-  color: var(--accent);
+  color: var(--text-muted);
 }
 
 .topbar-status {
@@ -124,7 +119,7 @@ html, body, #app {
 }
 
 .topbar-clock {
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
@@ -133,7 +128,7 @@ html, body, #app {
 
 .main-area {
   display: grid;
-  grid-template-columns: 180px 1fr;
+  grid-template-columns: 160px 1fr;
   overflow: hidden;
 }
 
@@ -151,15 +146,15 @@ html, body, #app {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  padding: 6px 10px;
   border-bottom: 1px solid var(--border);
   user-select: none;
 }
 
 .sidebar-title {
-  font-size: 10px;
+  font-size: 9px;
   font-weight: 600;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   color: var(--text-dim);
   text-transform: uppercase;
 }
@@ -169,15 +164,15 @@ html, body, #app {
   background: transparent;
   color: var(--text-dim);
   font: inherit;
-  font-size: 16px;
+  font-size: 14px;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 0 2px;
   line-height: 1;
   transition: color 100ms;
 }
 
 .sidebar-new-btn:hover {
-  color: var(--accent);
+  color: var(--text);
 }
 
 /* ── Terminal list ────────────────────────────────────── */
@@ -192,13 +187,13 @@ html, body, #app {
 .term-row {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   width: 100%;
-  padding: 6px 12px;
+  padding: 5px 10px;
   border: none;
   border-left: 2px solid transparent;
   background: transparent;
-  color: var(--text-muted);
+  color: var(--text-dim);
   font: inherit;
   font-size: 11px;
   cursor: pointer;
@@ -208,7 +203,7 @@ html, body, #app {
 
 .term-row:hover {
   background: var(--bg-elevated);
-  color: var(--text);
+  color: var(--text-muted);
 }
 
 .term-row.active {
@@ -218,13 +213,13 @@ html, body, #app {
 }
 
 .term-row.dead {
-  opacity: 0.5;
+  opacity: 0.4;
 }
 
 .term-row-index {
   color: var(--text-dim);
   font-size: 10px;
-  min-width: 14px;
+  min-width: 12px;
   text-align: right;
 }
 
@@ -233,20 +228,6 @@ html, body, #app {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.term-row-status {
-  font-size: 9px;
-}
-
-.term-row-status.alive {
-  color: var(--running);
-}
-
-.term-row-status.dead {
-  color: var(--error);
-  text-transform: uppercase;
-  font-weight: 600;
 }
 
 /* ── Terminal viewport ──────────────────────────────────── */
@@ -262,7 +243,7 @@ html, body, #app {
 .terminal-pane {
   position: absolute;
   inset: 0;
-  padding: 4px;
+  padding: 2px;
   overflow: hidden;
 }
 
@@ -332,7 +313,7 @@ html, body, #app {
 }
 
 .split-handle:hover {
-  background: rgba(91, 138, 255, 0.3);
+  background: rgba(144, 144, 144, 0.2);
 }
 
 /* ── Bottom bar ─────────────────────────────────────────── */
@@ -341,15 +322,15 @@ html, body, #app {
   display: flex;
   align-items: center;
   gap: 0;
-  padding: 0 12px;
+  padding: 0 10px;
   background: var(--bg-surface);
   border-top: 1px solid var(--border);
-  font-size: 11px;
+  font-size: 10px;
   user-select: none;
 }
 
 .bb-section {
-  color: var(--text-muted);
+  color: var(--text-dim);
   padding: 0 4px;
 }
 
@@ -364,7 +345,7 @@ html, body, #app {
 
 .bb-hint {
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: 9px;
 }
 
 /* ── Command palette ────────────────────────────────────── */
@@ -387,8 +368,8 @@ html, body, #app {
 
 .command-palette-dialog {
   position: relative;
-  width: 520px;
-  max-height: 400px;
+  width: 480px;
+  max-height: 360px;
   background: var(--bg-elevated);
   border: 1px solid var(--border-active);
   overflow: hidden;
@@ -396,13 +377,13 @@ html, body, #app {
 
 .command-palette-input {
   width: 100%;
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: none;
   border-bottom: 1px solid var(--border);
   background: var(--bg-surface);
   color: var(--text);
   font: inherit;
-  font-size: 13px;
+  font-size: 12px;
   outline: none;
 }
 
@@ -411,7 +392,7 @@ html, body, #app {
 }
 
 .command-palette-results {
-  max-height: 340px;
+  max-height: 300px;
   overflow-y: auto;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
@@ -421,23 +402,23 @@ html, body, #app {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 16px;
+  padding: 6px 14px;
   cursor: pointer;
   transition: background 80ms;
 }
 
 .palette-row:hover,
 .palette-row.selected {
-  background: rgba(91, 138, 255, 0.1);
+  background: rgba(144, 144, 144, 0.08);
 }
 
 .palette-action {
   color: var(--text);
-  font-size: 12px;
+  font-size: 11px;
 }
 
 .palette-keybind {
   color: var(--text-dim);
-  font-size: 10px;
+  font-size: 9px;
   text-transform: uppercase;
 }
