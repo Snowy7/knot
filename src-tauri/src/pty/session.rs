@@ -36,6 +36,8 @@ impl PtySession {
             .map_err(|e| PtyError::SpawnFailed(e.to_string()))?;
 
         let mut cmd = portable_pty::CommandBuilder::new(shell);
+        // Run as login shell so .zshrc/.bashrc/profile are sourced
+        cmd.arg("--login");
 
         if let Some(dir) = cwd {
             cmd.cwd(dir);
@@ -45,7 +47,7 @@ impl PtySession {
             cmd.env(key, val);
         }
 
-        // Set TERM
+        // Set TERM so the shell knows it's in a capable terminal
         cmd.env("TERM", "xterm-256color");
         cmd.env("COLORTERM", "truecolor");
 

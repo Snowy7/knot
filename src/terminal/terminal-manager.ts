@@ -21,7 +21,24 @@ export class TerminalManager {
     splitDirection: string | null = null,
   ): Promise<string> {
     try {
-      const { invoke } = await import("@tauri-apps/api/core");
+      const { invoke, Channel } = await import("@tauri-apps/api/core");
+      console.log("[knot] invoking create_terminal for workspace:", workspaceId);
+
+      // Create a channel for streaming PTY output — no event system needed
+      const onOutput = new Channel<{ terminal_id: string; data: number[] }>();
+      onOutput.onmessage = (message) => {
+        const inst = this.instances.get(message.terminal_id);
+        if (inst) {
+          const data = new Uint8Array(message.data);
+          if (inst.mounted) {
+            inst.term.write(data);
+          } else {
+            // Buffer until xterm is opened
+            inst.pendingData.push(data);
+          }
+        }
+      };
+
       const result = await invoke<TerminalCreated>("create_terminal", {
         workspaceId,
         title: null,
@@ -31,8 +48,10 @@ export class TerminalManager {
         rows: 30,
         splitFrom,
         splitDirection,
+        onOutput,
       });
 
+      console.log("[knot] create_terminal result:", result);
       const terminalId = result.terminal_id;
       const instance = this._createXtermInstance(terminalId);
 
@@ -95,7 +114,7 @@ export class TerminalManager {
     container.className = "terminal-container";
     container.dataset.terminalId = terminalId;
 
-    const instance: TerminalInstance = { term, fit, search, container };
+    const instance: TerminalInstance = { term, fit, search, container, mounted: false, pendingData: [] };
     this.instances.set(terminalId, instance);
     return instance;
   }
@@ -138,13 +157,28 @@ export class TerminalManager {
       parentElement.appendChild(instance.term.element);
     }
 
+    // Mark as mounted and flush any buffered output
+    instance.mounted = true;
+    if (instance.pendingData.length > 0) {
+      for (const chunk of instance.pendingData) {
+        instance.term.write(chunk);
+      }
+      instance.pendingData = [];
+    }
+
     requestAnimationFrame(() => {
       instance.fit.fit();
     });
   }
 
   writeToXterm(terminalId: string, data: Uint8Array): void {
-    this.instances.get(terminalId)?.term.write(data);
+    const inst = this.instances.get(terminalId);
+    if (!inst) return;
+    if (inst.mounted) {
+      inst.term.write(data);
+    } else {
+      inst.pendingData.push(data);
+    }
   }
 
   handleExit(terminalId: string): void {

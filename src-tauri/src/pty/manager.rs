@@ -1,8 +1,10 @@
 use super::session::{PtyError, PtySession};
+use crate::ipc::commands::TerminalOutput;
 use parking_lot::Mutex;
 use std::collections::HashMap;
 use std::sync::mpsc;
 use std::sync::Arc;
+use tauri::ipc::Channel;
 use tauri::{AppHandle, Emitter};
 
 /// Manages all PTY sessions across all workspaces.
@@ -32,11 +34,14 @@ impl PtyManager {
         rows: u16,
         env_vars: Vec<(String, String)>,
         app_handle: AppHandle,
+        on_output: Channel<TerminalOutput>,
     ) -> Result<(), PtyError> {
         let effective_shell = match shell {
             Some(s) if !s.is_empty() => s.to_string(),
             _ => self.default_shell.lock().clone(),
         };
+
+        log::info!("PTY: spawning shell='{}' cwd={:?} cols={} rows={}", effective_shell, cwd, cols, rows);
 
         let (session, rx) = PtySession::spawn(
             id.clone(),
@@ -47,13 +52,15 @@ impl PtyManager {
             env_vars,
         )?;
 
+        log::info!("PTY: session '{}' spawned successfully", id);
+
         let session = Arc::new(Mutex::new(session));
         self.sessions.lock().insert(id.clone(), session);
 
-        // Spawn a plain thread to forward PTY output to frontend via Tauri events
+        // Spawn a plain thread to forward PTY output to frontend via channel
         let terminal_id = id.clone();
         std::thread::spawn(move || {
-            forward_output(rx, terminal_id, app_handle);
+            forward_output(rx, terminal_id, app_handle, on_output);
         });
 
         Ok(())
@@ -102,14 +109,18 @@ impl PtyManager {
     }
 }
 
-/// Forward PTY output bytes to the frontend via Tauri events.
+/// Forward PTY output bytes to the frontend via Tauri channel.
 /// Runs on a dedicated thread — batches output to reduce IPC overhead.
 fn forward_output(
     rx: mpsc::Receiver<Vec<u8>>,
     terminal_id: String,
     app_handle: AppHandle,
+    on_output: Channel<TerminalOutput>,
 ) {
     let mut batch = Vec::with_capacity(16384);
+
+    log::info!("PTY forward: starting for '{}'", terminal_id);
+    let mut total_bytes: usize = 0;
 
     loop {
         // Block until first chunk arrives
@@ -125,27 +136,29 @@ fn forward_output(
                     }
                 }
 
-                // Emit batched data to frontend
+                total_bytes += batch.len();
+                if total_bytes <= 8192 {
+                    log::info!("PTY forward '{}': sending {} bytes via channel (total: {})", terminal_id, batch.len(), total_bytes);
+                }
+
+                // Send via channel (direct to JS callback, no event system)
                 let payload = TerminalOutput {
                     terminal_id: terminal_id.clone(),
                     data: batch.clone(),
                 };
-                let _ = app_handle.emit("terminal-output", &payload);
+                if let Err(e) = on_output.send(payload) {
+                    log::error!("PTY forward '{}': channel send failed: {}", terminal_id, e);
+                }
                 batch.clear();
             }
             Err(_) => {
-                // Channel closed — PTY process exited
+                // mpsc channel closed — PTY process exited
+                log::info!("PTY forward '{}': PTY exited (total bytes: {})", terminal_id, total_bytes);
                 let _ = app_handle.emit("terminal-exit", &terminal_id);
                 break;
             }
         }
     }
-}
-
-#[derive(serde::Serialize, Clone)]
-struct TerminalOutput {
-    terminal_id: String,
-    data: Vec<u8>,
 }
 
 fn detect_shell() -> String {

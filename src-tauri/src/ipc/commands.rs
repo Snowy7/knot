@@ -1,6 +1,7 @@
 use crate::workspace::model::{SplitDirection, Workspace};
 use crate::AppState;
 use tauri::{AppHandle, State};
+use tauri::ipc::Channel;
 
 // ── Workspace commands ──────────────────────────────────────
 
@@ -59,6 +60,7 @@ pub fn create_terminal(
     rows: Option<u16>,
     split_from: Option<String>,
     split_direction: Option<String>,
+    on_output: Channel<TerminalOutput>,
 ) -> Result<TerminalCreated, String> {
     let terminal_id = uuid::Uuid::new_v4().to_string();
     let pane_id = uuid::Uuid::new_v4().to_string();
@@ -87,6 +89,7 @@ pub fn create_terminal(
             rows,
             vec![],
             app_handle,
+            on_output,
         )
         .map_err(|e| e.to_string())?;
 
@@ -108,6 +111,12 @@ pub fn create_terminal(
         pane_id,
         title,
     })
+}
+
+#[derive(serde::Serialize, Clone)]
+pub struct TerminalOutput {
+    pub terminal_id: String,
+    pub data: Vec<u8>,
 }
 
 #[derive(serde::Serialize)]

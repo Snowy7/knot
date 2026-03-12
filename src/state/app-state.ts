@@ -133,20 +133,21 @@ export class AppState {
 
   // ── Events from Rust ────────────────────────────────────
 
-  onTerminalOutput(callback: (terminalId: string, data: Uint8Array) => void): void {
-    this._setupTauriListener("terminal-output", (event: any) => {
+  async onTerminalOutput(callback: (terminalId: string, data: Uint8Array) => void): Promise<void> {
+    await this._setupTauriListener("terminal-output", (event: any) => {
+      console.log("[knot] terminal-output event:", event.payload.terminal_id, "bytes:", event.payload.data?.length);
       callback(event.payload.terminal_id, new Uint8Array(event.payload.data));
     });
   }
 
-  onTerminalExit(callback: (terminalId: string) => void): void {
-    this._setupTauriListener("terminal-exit", (event: any) => {
+  async onTerminalExit(callback: (terminalId: string) => void): Promise<void> {
+    await this._setupTauriListener("terminal-exit", (event: any) => {
       callback(event.payload);
     });
   }
 
-  onConfigReloaded(callback: () => void): void {
-    this._setupTauriListener("config-reloaded", () => {
+  async onConfigReloaded(callback: () => void): Promise<void> {
+    await this._setupTauriListener("config-reloaded", () => {
       callback();
     });
   }
@@ -154,7 +155,7 @@ export class AppState {
   private async _setupTauriListener(eventName: string, handler: (event: any) => void): Promise<void> {
     try {
       const { listen } = await import("@tauri-apps/api/event");
-      listen(eventName, handler);
+      await listen(eventName, handler);
     } catch {
       // Not in Tauri environment
     }

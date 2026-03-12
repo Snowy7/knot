@@ -120,6 +120,8 @@ export interface TerminalInstance {
   fit: import("@xterm/addon-fit").FitAddon;
   search: import("@xterm/addon-search").SearchAddon;
   container: HTMLElement;
+  mounted: boolean;
+  pendingData: Uint8Array[];
 }
 
 export interface PaletteAction {

@@ -20,20 +20,31 @@ class KnotApp {
   }
 
   async init(): Promise<void> {
+    console.log("[knot] init: loading config...");
     await this.state.loadConfig();
+    console.log("[knot] init: config loaded", this.state.config?.shell);
 
     const workspaces = await this.state.loadWorkspaces();
+    console.log("[knot] init: workspaces loaded:", workspaces.length);
     if (workspaces.length === 0) {
       await this.createDefaultWorkspace();
+      console.log("[knot] init: default workspace created");
     }
 
     this.ui.render();
     this.keybindHandler.attach();
-    this.setupEventListeners();
+
+    // MUST await listeners before creating any terminal,
+    // otherwise PTY output events are lost.
+    console.log("[knot] init: setting up event listeners...");
+    await this.setupEventListeners();
+    console.log("[knot] init: listeners ready");
 
     const activeWs = this.state.activeWorkspace();
     if (activeWs && activeWs.terminals.length === 0) {
+      console.log("[knot] init: creating first terminal...");
       await this.executeAction("new_terminal");
+      console.log("[knot] init: first terminal created, activeTerminalId =", this.state.activeTerminalId);
     }
   }
 
@@ -44,24 +55,28 @@ class KnotApp {
 
   private async getCwd(): Promise<string> {
     try {
-      const { homeDir } = await import("@tauri-apps/api/path");
-      return await homeDir();
-    } catch {
-      return "~";
+      const { resolveResource, homeDir } = await import("@tauri-apps/api/path");
+      const home = await homeDir();
+      console.log("[knot] getCwd: homeDir =", home);
+      return home;
+    } catch (e) {
+      console.warn("[knot] getCwd failed, using /home fallback:", e);
+      // Fallback: resolve home from environment
+      return "/home";
     }
   }
 
-  private setupEventListeners(): void {
-    this.state.onTerminalOutput((terminalId: string, data: Uint8Array) => {
+  private async setupEventListeners(): Promise<void> {
+    await this.state.onTerminalOutput((terminalId: string, data: Uint8Array) => {
       this.terminalManager.writeToXterm(terminalId, data);
     });
 
-    this.state.onTerminalExit((terminalId: string) => {
+    await this.state.onTerminalExit((terminalId: string) => {
       this.terminalManager.handleExit(terminalId);
       this.ui.render();
     });
 
-    this.state.onConfigReloaded(() => {
+    await this.state.onConfigReloaded(() => {
       this.state.loadConfig().then(() => {
         this.terminalManager.applyConfig(this.state.config);
         this.ui.render();

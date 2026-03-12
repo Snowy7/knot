@@ -58,6 +58,13 @@ pub fn run() {
         .setup(|app| {
             let handle = app.handle().clone();
 
+            // Open devtools in dev mode
+            #[cfg(debug_assertions)]
+            {
+                let window = app.get_webview_window("main").unwrap();
+                window.open_devtools();
+            }
+
             // Watch config file for hot reload
             let config_state = app.state::<AppState>().config.clone();
             let keybind_state = app.state::<AppState>().keybind_engine.clone();

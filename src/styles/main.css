@@ -40,7 +40,7 @@ html, body, #app {
 
 .knot-shell {
   display: grid;
-  grid-template-rows: 38px 32px 1fr 24px;
+  grid-template-rows: 38px 1fr 24px;
   height: 100vh;
   overflow: hidden;
 }
@@ -123,90 +123,130 @@ html, body, #app {
   -webkit-app-region: no-drag;
 }
 
-.status-led {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 2px 6px;
-}
-
-.status-led.running {
-  color: var(--running);
-}
-
 .topbar-clock {
   font-size: 11px;
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
 }
 
-/* ── Terminal tab bar ───────────────────────────────────── */
+/* ── Main area (sidebar + viewport) ───────────────────── */
 
-.terminal-tabbar {
+.main-area {
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  overflow: hidden;
+}
+
+/* ── Sidebar ──────────────────────────────────────────── */
+
+.sidebar {
   display: flex;
-  align-items: stretch;
-  gap: 0;
-  background: var(--bg);
-  border-bottom: 1px solid var(--border);
-  overflow-x: auto;
-  scrollbar-width: none;
+  flex-direction: column;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  overflow: hidden;
 }
 
-.terminal-tabbar::-webkit-scrollbar {
-  display: none;
-}
-
-.term-tab {
+.sidebar-header {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 0 14px;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+
+.sidebar-title {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--text-dim);
+  text-transform: uppercase;
+}
+
+.sidebar-new-btn {
   border: none;
-  border-right: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 100ms;
+}
+
+.sidebar-new-btn:hover {
+  color: var(--accent);
+}
+
+/* ── Terminal list ────────────────────────────────────── */
+
+.term-list {
+  flex: 1;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.term-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  border: none;
+  border-left: 2px solid transparent;
   background: transparent;
   color: var(--text-muted);
   font: inherit;
   font-size: 11px;
   cursor: pointer;
-  white-space: nowrap;
-  transition: background 100ms, color 100ms;
+  text-align: left;
+  transition: background 80ms, color 80ms, border-color 80ms;
 }
 
-.term-tab:hover {
-  background: var(--bg-surface);
-  color: var(--text);
-}
-
-.term-tab.active {
+.term-row:hover {
   background: var(--bg-elevated);
   color: var(--text);
-  border-bottom: 2px solid var(--accent);
 }
 
-.tab-index {
+.term-row.active {
+  background: var(--bg-elevated);
+  color: var(--text);
+  border-left-color: var(--accent);
+}
+
+.term-row.dead {
+  opacity: 0.5;
+}
+
+.term-row-index {
   color: var(--text-dim);
   font-size: 10px;
   min-width: 14px;
+  text-align: right;
 }
 
-.tab-title {
-  color: inherit;
+.term-row-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.tab-dead {
-  color: var(--error);
+.term-row-status {
   font-size: 9px;
+}
+
+.term-row-status.alive {
+  color: var(--running);
+}
+
+.term-row-status.dead {
+  color: var(--error);
   text-transform: uppercase;
-}
-
-.term-tab-new {
-  padding: 0 12px;
-  color: var(--text-dim);
-  font-size: 16px;
-  border-right: none;
-}
-
-.term-tab-new:hover {
-  color: var(--accent);
+  font-weight: 600;
 }
 
 /* ── Terminal viewport ──────────────────────────────────── */
@@ -226,10 +266,6 @@ html, body, #app {
 
 .terminal-pane .xterm {
   height: 100%;
-}
-
-.terminal-pane.active {
-  z-index: 1;
 }
 
 /* ── Split layout ───────────────────────────────────────── */
